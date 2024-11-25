@@ -43,13 +43,13 @@ jobs:
         with:
           components: rustfmt, clippy
 
-#      - name: Install sqlx-cli
-#        run:
-#          cargo install sqlx-cli
-#          --version=${{ env.SQLX_VERSION }}
-#          --features ${{ env.SQLX_FEATURES }}
-#          --no-default-features
-#          --locked
+      - name: Install sqlx-cli
+        run:
+          cargo install sqlx-cli
+          --version=${{ env.SQLX_VERSION }}
+          --features ${{ env.SQLX_FEATURES }}
+          --no-default-features
+          --locked
 
       - name: Create app user in Postgres
         run: |
