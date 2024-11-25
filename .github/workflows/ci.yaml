@@ -1,0 +1,84 @@
+name: "CI"
+
+on:
+  merge_group:
+  workflow_dispatch:
+  workflow_call:
+  pull_request:
+  push:
+
+env:
+  CARGO_TERM_COLOR: always
+#  SQLX_VERSION: 0.8.0
+#  SQLX_FEATURES: "rustls,postgres"
+  APP_USER: app
+  APP_USER_PWD: secret
+  APP_DB_NAME: gomoku
+
+#concurrency:
+#  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+#  cancel-in-progress: true
+
+jobs:
+  CI:
+    name: CI
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@v4
+
+      - name: Install stable toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: rustfmt, clippy
+
+#      - name: Install sqlx-cli
+#        run:
+#          cargo install sqlx-cli
+#          --version=${{ env.SQLX_VERSION }}
+#          --features ${{ env.SQLX_FEATURES }}
+#          --no-default-features
+#          --locked
+
+      - name: Create app user in Postgres
+        run: |
+          sudo apt-get install postgresql-client
+
+          # Create the application user
+          CREATE_QUERY="CREATE USER ${APP_USER} WITH PASSWORD '${APP_USER_PWD}';"
+          PGPASSWORD="password" psql -U "postgres" -h "localhost" -c "${CREATE_QUERY}"
+
+          # Grant create db privileges to the app user
+          GRANT_QUERY="ALTER USER ${APP_USER} CREATEDB;"
+          PGPASSWORD="password" psql -U "postgres" -h "localhost" -c "${GRANT_QUERY}"
+
+      - name: Migrate database
+        run: |
+          SKIP_DOCKER=true ./scripts/init_db.sh
+
+      - name: fmt
+        run: cargo fmt --all --check
+
+      - name: clippy
+        run: cargo clippy c -- -D warnings
+
+      - name: check
+        run: cargo check
+
+      - name: test
+        run: cargo test
+
+      - name: cargo build
+        run: cargo b --workspace --all-targets --all-features
+
