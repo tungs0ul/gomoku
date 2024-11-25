@@ -71,7 +71,7 @@ jobs:
         run: cargo fmt --all --check
 
       - name: clippy
-        run: cargo clippy c -- -D warnings
+        run: cargo clippy -- -D warnings
 
       - name: check
         run: cargo check
