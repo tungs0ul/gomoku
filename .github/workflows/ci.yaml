@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   workflow_call:
   pull_request:
-  push:
+#  push:
 
 env:
   CARGO_TERM_COLOR: always
