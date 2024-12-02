@@ -52,7 +52,6 @@ async fn create_bot_game(
     let mut game = Game::new(game_id, Player::X);
     game.x = Some(user_id);
     game.o = Some(Uuid::nil());
-    println!("Create game");
     state.db.new_game(&game, room_id).await.map_err(|error| {
         tracing::error!(?error);
         StatusCode::INTERNAL_SERVER_ERROR
