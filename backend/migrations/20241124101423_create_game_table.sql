@@ -10,7 +10,8 @@ create table game (
     o_ready bool not null default false,
     x uuid,
     o uuid,
-    winner player,
+    winner jsonb,
+    init_player player not null default 'x',
     created_at timestamptz default now()
 );
 

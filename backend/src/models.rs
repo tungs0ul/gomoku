@@ -974,10 +974,13 @@ impl Position {
 }
 
 pub struct GameDb {
+    pub room: Uuid,
     pub id: Uuid,
     pub x: Option<Uuid>,
     pub o: Option<Uuid>,
     pub moves: serde_json::Value,
+    pub winner: serde_json::Value,
+    pub init_player: Player,
 }
 
 #[derive(Deserialize)]
@@ -1001,18 +1004,19 @@ impl TryFrom<GameDb> for Game {
                 Player::X => Player::O,
                 Player::O => Player::X,
             },
-            None => Player::X,
+            None => game.init_player,
         };
         let mut board = [[None; BOARD_SIZE]; BOARD_SIZE];
         moves.iter().for_each(|mv| {
             board[mv.position.row][mv.position.col] = Some(mv.player);
         });
+        let winner: Option<Vec<Move>> = serde_json::from_value(game.winner)?;
         let game = Game {
             board,
             id: game.id,
             moves,
             next_player,
-            winner: None,
+            winner,
             o: game.o,
             x: game.x,
         };
