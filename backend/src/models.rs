@@ -232,11 +232,15 @@ impl Game {
             self.next_player = Player::O;
 
             self.board[row][col] = None;
-            if score > bot_score {
-                bot_score = score;
-                bot_moves = vec![pos];
-            } else if score == bot_score {
-                bot_moves.push(pos);
+            match score.cmp(&bot_score) {
+                Ordering::Greater => {
+                    bot_score = score;
+                    bot_moves = vec![pos];
+                }
+                Ordering::Equal => {
+                    bot_moves.push(pos);
+                }
+                Ordering::Less => {}
             }
         }
 
