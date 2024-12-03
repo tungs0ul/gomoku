@@ -21,6 +21,11 @@
       asyncComponent: () => import('$lib/pages/SignIn.svelte')
     }),
 
+    '/rooms': wrap({
+      // @ts-ignore
+      asyncComponent: () => import('$lib/pages/Rooms.svelte')
+    }),
+
     '/play/*': wrap({
       // @ts-ignore
       asyncComponent: () => import('$lib/pages/Play.svelte')

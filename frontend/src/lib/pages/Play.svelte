@@ -40,16 +40,14 @@
       `ws://localhost:11211/${$location.replace('/play/', 'ws/')}`
     )
     socket.onopen = () => {
-      console.log('open')
       socket!.send('Hello world')
     }
-    socket.onclose = () => {
-      console.log('close')
+    socket.onclose = (ev) => {
+      // console.log('close', ev)
     }
     socket.onmessage = ({ data }) => {
       let msg: GameEvent = JSON.parse(data)
       if (msg.event === 'Game') {
-        console.log(msg.game)
         gameStartAudio.play()
         game = msg.game
         player =
@@ -57,9 +55,9 @@
       }
       if (msg.event === 'MoveEvent') {
         if (game === null) return
-        console.log(
-          `game.board[${msg.mv.position.row}][${msg.mv.position.col}] = Some(Player::${msg.mv.player})`
-        )
+        // console.log(
+        //   `game.board[${msg.mv.position.row}][${msg.mv.position.col}] = Some(Player::${msg.mv.player})`
+        // )
         game.moves.push(msg.mv)
         game.board[msg.mv.position.row][msg.mv.position.col] = msg.mv.player
         if (player !== msg.mv.player) {
@@ -73,7 +71,6 @@
         predicts = []
       }
       if (msg.event === 'Winner') {
-        console.log(msg.last_move, player === msg.last_move.player)
         if (game === null) return
         if (msg.last_move.player === player) {
           victoryAudio.play()
@@ -131,25 +128,21 @@
     <div class="grid h-full w-full place-items-center">
       {#if game !== null}
         <GameRender {game} {play} {player} {predicts} />
-        {#if game.winner}
-          <div
-            class="absolute inset-0 flex items-end justify-center bg-gray-400/50 p-24"
-          >
+        {#if game.winner && player !== null}
+          <div class="absolute inset-0 flex justify-center bg-gray-400/50 p-24">
             <div
-              in:fly={{ y: 100 }}
+              in:fly={{ y: -100 }}
               class="grid h-fit place-items-center gap-4 rounded bg-white p-8"
             >
-              {#if player !== null}
-                <div
-                  class="inline-block bg-gradient-to-r from-blue-600 via-green-500 to-indigo-400 bg-clip-text text-6xl font-bold text-transparent"
-                >
-                  {#if player === game.winner[0].player}
-                    <div>You Won</div>
-                  {:else}
-                    <div>You Lost</div>
-                  {/if}
-                </div>
-              {/if}
+              <div
+                class="inline-block bg-gradient-to-r from-blue-600 via-green-500 to-indigo-400 bg-clip-text text-6xl font-bold text-transparent"
+              >
+                {#if player === game.winner[0].player}
+                  <div>You Won</div>
+                {:else}
+                  <div>You Lost</div>
+                {/if}
+              </div>
               <Button
                 variant="destructive"
                 on:click={() => {

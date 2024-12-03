@@ -11,12 +11,12 @@
     <a href="/" use:link>Gomoku</a>
   </div>
   <div class="grow">
-    <div
+    <!-- <div
       class="flex cursor-pointer items-center gap-2 px-4 py-4 text-lg hover:bg-[#000000]"
     >
       <div><Play /></div>
       <div>{$_('play')}</div>
-    </div>
+    </div> -->
   </div>
 
   <div class="flex grow flex-col gap-2">
