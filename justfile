@@ -15,3 +15,12 @@ init_db:
 
 clear_test_db:
     ./scripts/clear_test_dbs.sh
+
+create_migration description:
+    cargo sqlx migrate add --source ./backend/migrations {{description}}
+
+backend:
+    cargo run -p backend
+
+frontend:
+    cd frontend && bun run dev
