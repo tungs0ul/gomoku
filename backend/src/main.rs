@@ -25,11 +25,11 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind("0.0.0.0:11211")
         .await
         .expect("Can't bind TCP socket");
-    let pool = PgPool::connect(&CONFIG.database_url).await.expect("Can't connect to database");
-    if let Err(error) = sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await {
+    let pool = PgPool::connect_lazy(&CONFIG.database_url).expect("Can't connect to database");
+    if let Err(error) = sqlx::migrate!("./migrations").run(&pool).await {
         tracing::error!(?error);
     }
-    axum::serve(listener, api::app(pool)).await.expect("Failed to run server");
+    axum::serve(listener, api::app(pool))
+        .await
+        .expect("Failed to run server");
 }
