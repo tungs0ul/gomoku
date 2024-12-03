@@ -19,7 +19,7 @@ pub async fn spawn_router() -> Result<(PgPool, Router, TcpListener)> {
     .await
     .expect("Database connection failed");
     let app = api::app(pool.clone());
-    sqlx::migrate!("../migrations")
+    sqlx::migrate!("./migrations")
         .run(&pool)
         .await
         .expect("Database migration failed");
