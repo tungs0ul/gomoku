@@ -185,11 +185,6 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
             if let Ok(msg) = msg {
                 let game = sender_state.db.get_active_game_for_room(&room_id).await;
                 if game.is_err() {
-                    tracing::error!("Game not found");
-                    break;
-                }
-                let game = Game::try_from(game.unwrap());
-                if game.is_err() {
                     tracing::error!("Invalid game");
                     break;
                 }
