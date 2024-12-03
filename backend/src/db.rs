@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::models::{Game, GameDb, Move, Player};
 use anyhow::Result;
 use sqlx::PgPool;

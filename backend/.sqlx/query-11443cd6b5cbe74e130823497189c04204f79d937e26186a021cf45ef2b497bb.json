@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update game set winner = $2 where id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "11443cd6b5cbe74e130823497189c04204f79d937e26186a021cf45ef2b497bb"
+}
