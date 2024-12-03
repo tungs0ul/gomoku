@@ -21,8 +21,10 @@ async fn main() {
         .with_target(false)
         .finish();
     tracing::subscriber::set_global_default(subscriber).unwrap();
-    tracing::info!("Listening on port 3000");
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    tracing::info!("Listening on port 11211");
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:11211")
+        .await
+        .unwrap();
     let pool = PgPool::connect(&CONFIG.database_url).await.unwrap();
     axum::serve(listener, api::app(pool)).await.unwrap();
 }

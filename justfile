@@ -2,7 +2,7 @@ fmt:
     cargo fmt
 
 sqlx:
-    cargo sqlx prepare --workspace -- -p backend
+    cd backend && cargo sqlx prepare
 
 clippy:
     cargo clippy --workspace --all-targets --all-features --fix
