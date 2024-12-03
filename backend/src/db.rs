@@ -1,4 +1,4 @@
-use crate::models::{Game, GameDb};
+use crate::models::{Game, GameDb, Move};
 use anyhow::Result;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -13,7 +13,7 @@ impl Db {
         Self { pool }
     }
 
-    pub async fn new_game(&self, game: &Game, room_id: Uuid) -> Result<()> {
+    pub async fn new_game(&self, game: &Game, room_id: &Uuid) -> Result<()> {
         sqlx::query!(
             "INSERT INTO game (id, room, x, o) VALUES ($1, $2, $3, $4)",
             game.id,
@@ -26,7 +26,7 @@ impl Db {
         Ok(())
     }
 
-    pub async fn get_active_game_for_room(&self, room_id: Uuid) -> Result<Game> {
+    pub async fn get_active_game_for_room(&self, room_id: &Uuid) -> Result<Game> {
         let game = sqlx::query_as!(
             GameDb,
             r#"
@@ -57,5 +57,26 @@ impl Db {
 
         let game = Game::try_from(game)?;
         Ok(game)
+    }
+
+    pub async fn end_game(&self, id: Uuid) -> Result<()> {
+        sqlx::query!("update game set status = 'ended' where id = $1", id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn insert_move(&self, game_id: &Uuid, mv: &Move, turn: usize) -> Result<()> {
+        sqlx::query!(
+            r#"insert into game_move(game_id, row, col, player, turn) values ($1, $2, $3, $4, $5)"#,
+            game_id,
+            mv.position.row as i32,
+            mv.position.col as i32,
+            mv.player as _,
+            turn as i32
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
     }
 }

@@ -10,6 +10,7 @@ create table game (
     o_ready bool not null default false,
     x uuid,
     o uuid,
+    winner player,
     created_at timestamptz default now()
 );
 

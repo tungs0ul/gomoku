@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into game_move(game_id, row, col, player, turn) values ($1, $2, $3, $4, $5)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int2",
+        "Int2",
+        {
+          "Custom": {
+            "name": "player",
+            "kind": {
+              "Enum": [
+                "x",
+                "o"
+              ]
+            }
+          }
+        },
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0fccbc5bd30756c5cd3dc3b727998ff930aa21f6763baed1b23e747354f01e16"
+}
