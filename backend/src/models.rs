@@ -55,12 +55,12 @@ impl Game {
                 return Err(anyhow::anyhow!("Invalid move"));
             }
         }
-        self.board[position.row][position.col] = Some(player.clone());
+        self.board[position.row][position.col] = Some(*player);
         self.next_player = match player {
             Player::X => Player::O,
             Player::O => Player::X,
         };
-        self.moves.push(next_move.clone());
+        self.moves.push(*next_move);
         Ok(())
     }
 
@@ -197,8 +197,7 @@ impl Game {
                     }
                     if threats
                         .iter()
-                        .find(|(_, p, _)| p.col == pos.col && p.row == pos.row)
-                        .is_some()
+                        .any(|(_, p, _)| p.col == pos.col && p.row == pos.row)
                     {
                         continue;
                     }
@@ -318,10 +317,10 @@ impl Game {
         let o = pattern.chars().filter(|c| *c == 'o').count();
         let x = pattern.chars().filter(|c| *c == 'x').count();
         let chr = if o > x { 'o' } else { 'x' };
-        if str.find(pattern).is_some() {
+        if str.contains(pattern) {
             return pattern.chars().filter(|c| *c == chr).count();
         }
-        return 0;
+        0
     }
 
     fn double_winning_threats(&self, row: usize, col: usize, patterns: &[&str]) -> usize {
@@ -402,11 +401,11 @@ impl Game {
         positions: Vec<Position>,
     ) -> Vec<(usize, Position, Player)> {
         let mut threats = vec![];
-        if vect_str.find("ooooo").is_some() {
+        if vect_str.contains("ooooo") {
             bot_scores.push(MAX_SCORE);
             return threats;
         }
-        if vect_str.find("xxxxx").is_some() {
+        if vect_str.contains("xxxxx") {
             player_scores.push(MAX_SCORE);
             return threats;
         }
@@ -752,7 +751,7 @@ impl Game {
             match (player.first(), bot.first()) {
                 (Some(p), None) => *p * -1,
                 (None, Some(b)) => *b,
-                (Some(p), Some(b)) => match p.cmp(&b) {
+                (Some(p), Some(b)) => match p.cmp(b) {
                     Ordering::Greater | Ordering::Equal => *p * -1,
                     Ordering::Less => *b,
                 },

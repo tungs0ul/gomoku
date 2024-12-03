@@ -4,12 +4,10 @@ use axum::extract::ws::{CloseFrame, Message, WebSocket};
 use axum::extract::{Path, State, WebSocketUpgrade};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::routing::{get, post};
-use axum::{Json, Router};
+use axum::routing::get;
+use axum::Router;
 use futures::SinkExt;
 use futures::StreamExt;
-use serde::Deserialize;
-use serde::Serialize;
 use sqlx::PgPool;
 use std::collections::HashSet;
 use std::{collections::HashMap, sync::Arc};
@@ -236,7 +234,7 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
                                     let _ = sender_tx.send(GameEvent::MoveEvent { mv: bot_move });
                                     let _ = state
                                         .db
-                                        .insert_move(&game.id, &bot_move, (&game.moves).len())
+                                        .insert_move(&game.id, &bot_move, game.moves.len())
                                         .await;
                                 }
                             }
