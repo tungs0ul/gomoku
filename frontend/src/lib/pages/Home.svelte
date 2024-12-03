@@ -1,15 +1,21 @@
 <script lang="ts">
   import { _ } from 'svelte-i18n'
   import Bot from 'lucide-svelte/icons/bot'
+  import Zap from 'lucide-svelte/icons/zap'
   import User from 'lucide-svelte/icons/user'
   import Board from '$lib/assets/board.jpeg'
   import { client, user } from '$lib/store.svelte'
-  import { push } from 'svelte-spa-router'
+  import { link, push } from 'svelte-spa-router'
+  import * as Drawer from '$lib/components/ui/drawer'
+  import { Button } from '$lib/components/ui/button'
+
+  // import * as Drawer from '$lib/components/ui/drawer'
+  // import { Button } from '$lib/components/ui/button'
 
   let games = 345834985734
   let players = 1234567890
 
-  const createGame = async (single: boolean, random: boolean) => {
+  const createGame = async (single: boolean) => {
     if (user.user === null) return
     if (single) {
       const { data } = await client.get(`/game/bot/${user.user}`)
@@ -49,31 +55,58 @@
       </div>
 
       <div class="flex flex-col gap-4">
-        <button
-          onclick={() => createGame(true, false)}
-          class="flex w-full justify-between gap-2 rounded-xl bg-[#7c945d] px-4 py-6 text-xl shadow-xl hover:bg-[#6a8049]"
-        >
-          <User class="h-16 w-16" />
-          <div class="grid grow gap-2">
-            <div class="text-4xl font-bold">{$_('play-online')}</div>
-            <div class="text-sm font-thin">
-              {$_('find-room-to-play-with')}
-            </div>
-          </div>
-        </button>
-        <button
-          onclick={() => createGame(true, false)}
-          class="flex w-full justify-between gap-2 rounded-xl border-gray-600 bg-[#3d3d3d] px-4 py-6 text-xl shadow-xl"
-        >
-          <Bot class="h-16 w-16" />
-          <div class="grid grow gap-2">
-            <div class="text-4xl font-bold">{$_('play-bots')}</div>
-            <div class="text-sm font-thin">
-              <!-- {$_('play-with-customizable-training-bots')} -->
-              {$_('feature-in-progress')}
-            </div>
-          </div>
-        </button>
+        <Drawer.Root>
+          <Drawer.Trigger>
+            <Button class="w-full py-12 text-4xl" variant="default" size="lg"
+              >{$_('play')}</Button
+            >
+          </Drawer.Trigger>
+          <Drawer.Content>
+            <Drawer.Header>
+              <Drawer.Title>{$_('create-game')}</Drawer.Title>
+              <Drawer.Description>
+                {$_('create-an-online-room-any-one-can-join')}
+              </Drawer.Description>
+            </Drawer.Header>
+            <Drawer.Footer>
+              <button
+                onclick={() => createGame(true)}
+                class="grid grid-cols-2 items-center gap-4 rounded-md bg-blue-400 py-6"
+              >
+                <div class="flex justify-end">
+                  <Bot class="h-6 w-6" />
+                </div>
+                <div class="flex">{$_('play-bot')}</div>
+              </button>
+
+              <button
+                onclick={() => alert($_('feature-in-progress'))}
+                class="grid grid-cols-2 items-center gap-4 rounded-md bg-green-400 py-6"
+              >
+                <div class="flex justify-end">
+                  <User class="h-6 w-6" />
+                </div>
+                <div class="flex">{$_('play-friend')}</div>
+              </button>
+              <button
+                onclick={() => alert($_('feature-in-progress'))}
+                class="grid grid-cols-2 items-center gap-4 rounded-md bg-red-400 py-6"
+              >
+                <div class="flex justify-end">
+                  <Zap class="h-6 w-6" />
+                </div>
+                <div class="flex">{$_('play-random')}</div>
+              </button>
+              <Drawer.Close>{$_('cancel')}</Drawer.Close>
+            </Drawer.Footer>
+          </Drawer.Content>
+        </Drawer.Root>
+
+        <a href="/rooms" use:link class="w-full">
+          <Button size="lg" class="w-full py-8 text-4xl" variant="secondary">
+            {$_('watch')}
+          </Button>
+        </a>
       </div>
     </div>
   </div>

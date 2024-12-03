@@ -14,12 +14,12 @@
     predicts: { row: number; col: number; score: number }[]
   } = $props()
 
-  const findIndex = (x: number, y: number) => {
-    let idx = game.moves.findIndex(
-      (move) => move.position.row === y && move.position.col === x
-    )
-    return idx === -1 ? null : idx
-  }
+  // const findIndex = (x: number, y: number) => {
+  //   let idx = game.moves.findIndex(
+  //     (move) => move.position.row === y && move.position.col === x
+  //   )
+  //   return idx === -1 ? null : idx
+  // }
 
   const findPredict = (x: number, y: number) => {
     let predict = predicts.find((p) => p.row === y && p.col === x)
@@ -44,7 +44,7 @@
 
   const getStyle = (col: number, row: number) => {
     let border =
-      game.board[row][col] === 'x' ? 'border-white ' : 'border-black '
+      game.board[row][col] === 'x' ? 'border-gray-700 ' : 'border-gray-200 '
     let base =
       'grid aspect-square place-items-center rounded-full border-2 shadow-xl ' +
       border
@@ -69,11 +69,17 @@
         ' border-4 border-indigo-500/100'
       )
     }
+    if (player === null && game.board[row][col] === 'x') {
+      return base + 'border-gray-700 bg-black'
+    }
+    if (player === null && game.board[row][col] === 'o') {
+      return base + 'border-gray-200 bg-white'
+    }
 
-    if (game.board[row][col] === player && player !== null) {
+    if (game.board[row][col] === player) {
       return base + 'border-black bg-green-400'
     }
-    if (game.board[row][col] !== player && player !== null) {
+    if (game.board[row][col] !== player) {
       return base + 'border-black bg-red-400'
     }
     return base

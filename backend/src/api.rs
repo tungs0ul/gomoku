@@ -4,8 +4,8 @@ use axum::extract::ws::{CloseFrame, Message, WebSocket};
 use axum::extract::{Path, State, WebSocketUpgrade};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::routing::get;
-use axum::Router;
+use axum::routing::{get, post};
+use axum::{Json, Router};
 use futures::SinkExt;
 use futures::StreamExt;
 use sqlx::PgPool;
@@ -50,8 +50,30 @@ pub fn app(pool: PgPool) -> Router {
         .route("/health_check", get(health_check))
         .route("/game/bot/:user_id", get(create_bot_game))
         .route("/ws/:room_id/:user_id", get(websocket_handler))
+        .route("/room", get(get_rooms))
+        .route("/user", post(random_user))
         .layer(CorsLayer::permissive())
         .with_state(Arc::new(state))
+}
+
+async fn random_user() -> String {
+    Uuid::new_v4().to_string()
+}
+
+async fn get_rooms(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<(Uuid, Game)>>, StatusCode> {
+    let rooms = state.rooms.lock().await;
+    let rooms: Vec<Uuid> = { rooms.keys().map(|x| x.to_owned()).collect() };
+    let rooms = state
+        .db
+        .get_active_game_for_rooms(&rooms)
+        .await
+        .map_err(|err| {
+            tracing::error!(?err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    Ok(Json(rooms))
 }
 
 async fn health_check(State(_state): State<Arc<AppState>>) -> StatusCode {
@@ -68,10 +90,14 @@ async fn create_bot_game(
     let mut game = Game::new(game_id, Player::X);
     game.x = Some(user_id);
     game.o = Some(Uuid::nil());
-    state.db.new_game(&game, &room_id).await.map_err(|error| {
-        tracing::error!(?error);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    state
+        .db
+        .new_game(&game, &room_id, &game.next_player)
+        .await
+        .map_err(|error| {
+            tracing::error!(?error);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
     Ok(room_id.to_string())
 }
@@ -81,12 +107,12 @@ async fn websocket_handler(
     ws: WebSocketUpgrade,
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
-    tracing::info!("Trying to connect");
     ws.on_upgrade(move |socket| websocket(socket, state, room_id, user_id))
 }
 
 async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String, user_id: String) {
     // let (mut sender, mut receiver) = stream.split();
+    tracing::info!("Connecting");
     let user_id = Uuid::parse_str(&user_id);
     let room_id = Uuid::parse_str(&room_id);
     if user_id.is_err() || room_id.is_err() {
@@ -182,110 +208,137 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
             let msg = serde_json::from_str::<GameEvent>(&text);
-            if let Ok(msg) = msg {
-                let game = sender_state.db.get_active_game_for_room(&room_id).await;
-                if game.is_err() {
-                    tracing::error!("Invalid game");
-                    break;
+            if msg.is_err() {
+                continue;
+            }
+            let msg = msg.unwrap();
+            let game = sender_state.db.get_active_game_for_room(&room_id).await;
+            if game.is_err() {
+                tracing::error!("Invalid game");
+                continue;
+            }
+            let mut game = game.unwrap();
+            match msg {
+                GameEvent::Chat { msg } => {
+                    let _ = sender_tx.send(GameEvent::Chat { msg });
                 }
-                let mut game = game.unwrap();
-                match msg {
-                    GameEvent::Chat { msg } => {
-                        let _ = sender_tx.send(GameEvent::Chat { msg });
+                GameEvent::MoveEvent { mv } => {
+                    if mv.player == Player::O && Some(user_id) != game.o {
+                        continue;
                     }
-                    GameEvent::MoveEvent { mv } => {
-                        if game.play(&mv).is_ok() {
-                            let _ = sender_state
-                                .db
-                                .insert_move(&game.id, &mv, game.moves.len())
-                                .await;
-                            if let Ok(Some(win)) = game.check_winning_move(&mv.position) {
-                                game.winner = Some(win);
-                                let _ = sender_state.db.end_game(game.id).await;
-                                let _ = sender_tx.send(GameEvent::Winner {
-                                    moves: game.winner.unwrap(),
-                                    last_move: mv,
-                                });
-                                continue;
-                            }
-                            let _ = sender_tx.send(GameEvent::MoveEvent { mv });
-                        }
+                    if mv.player == Player::X && Some(user_id) != game.x {
+                        continue;
                     }
-                    GameEvent::PlayAgain => {
-                        if game.o == Some(Uuid::nil()) {
-                            let _ = sender_state.db.end_game(game.id).await;
-                            let next_player = game.next_player;
-                            let mut game = Game::new(Uuid::new_v4(), next_player);
-                            game.x = Some(user_id);
-                            game.o = Some(Uuid::nil());
-                            if let Err(error) = sender_state.db.new_game(&game, &room_id).await {
-                                tracing::error!(?error, "Error saving game");
+                    if game.play(&mv).is_ok() {
+                        let _ = sender_state
+                            .db
+                            .insert_move(&game.id, &mv, game.moves.len())
+                            .await;
+                        if let Ok(Some(win)) = game.check_winning_move(&mv.position) {
+                            game.winner = Some(win);
+                            if let Err(error) = sender_state.db.update_game_winner(&game).await {
+                                tracing::error!(?error, "Error update game winner");
                             }
-                            if game.next_player == Player::O {
-                                let predict = game.find_bot_move(2);
-                                if let Some(pos) = predict {
-                                    let bot_move = Move::new(Player::O, pos);
-                                    game.play(&bot_move).unwrap();
-                                    let _ = sender_tx.send(GameEvent::MoveEvent { mv: bot_move });
-                                    let _ = state
-                                        .db
-                                        .insert_move(&game.id, &bot_move, game.moves.len())
-                                        .await;
-                                }
-                            }
-                            let _ = sender_tx.send(GameEvent::Game {
-                                game: Box::new(game),
+                            let _ = sender_tx.send(GameEvent::Winner {
+                                moves: game.winner.unwrap(),
+                                last_move: mv,
                             });
+                            continue;
                         }
+                        let _ = sender_tx.send(GameEvent::MoveEvent { mv });
                     }
-
-                    GameEvent::PredictBot { position } => {
-                        let next_move = Move::new(Player::X, position);
-                        let result = game.play(&next_move);
-                        if result.is_ok() {
-                            let _ = state
-                                .db
-                                .insert_move(&game.id, &next_move, game.moves.len())
-                                .await;
-                            let _ = sender_tx.send(GameEvent::MoveEvent { mv: next_move });
-                            if let Ok(Some(win)) = game.check_winning_move(&position) {
-                                game.winner = Some(win);
-                                let _ = sender_tx.send(GameEvent::Winner {
-                                    moves: game.winner.unwrap(),
-                                    last_move: next_move,
-                                });
-                                continue;
-                            }
-                            // if let  sender.send(Message::Text(
-                            //     serde_json::to_string(&GameEvent::MoveEvent { mv: next_move }).unwrap(),
-                            // ));
+                }
+                GameEvent::PlayAgain => {
+                    if game.o == Some(Uuid::nil()) {
+                        if game.x != Some(user_id) {
+                            continue;
+                        }
+                        let _ = sender_state.db.end_game(game.id).await;
+                        let next_player = game.next_player;
+                        let mut game = Game::new(Uuid::new_v4(), next_player);
+                        game.x = Some(user_id);
+                        game.o = Some(Uuid::nil());
+                        if let Err(error) = sender_state
+                            .db
+                            .new_game(&game, &room_id, &game.next_player)
+                            .await
+                        {
+                            tracing::error!(?error, "Error saving game");
+                        }
+                        if game.next_player == Player::O {
                             let predict = game.find_bot_move(2);
-
                             if let Some(pos) = predict {
                                 let bot_move = Move::new(Player::O, pos);
                                 game.play(&bot_move).unwrap();
                                 let _ = sender_tx.send(GameEvent::MoveEvent { mv: bot_move });
-                                let _ = state
+                                let _ = sender_state
                                     .db
                                     .insert_move(&game.id, &bot_move, game.moves.len())
                                     .await;
-                                if let Ok(Some(win)) = game.check_winning_move(&pos) {
-                                    game.winner = Some(win);
-                                    let _ = sender_tx.send(GameEvent::Winner {
-                                        moves: game.winner.unwrap(),
-                                        last_move: bot_move,
-                                    });
-                                    continue;
-                                }
                             }
-                        } else {
-                            let _ = sender_tx.send(GameEvent::InvalidMove {
-                                player: game.next_player,
-                            });
                         }
+                        let _ = sender_tx.send(GameEvent::Game {
+                            game: Box::new(game),
+                        });
                     }
-                    _ => {}
                 }
+
+                GameEvent::PredictBot { position } => {
+                    if game.x != Some(user_id) {
+                        continue;
+                    }
+                    let next_move = Move::new(Player::X, position);
+                    let result = game.play(&next_move);
+                    if result.is_ok() {
+                        let _ = sender_state
+                            .db
+                            .insert_move(&game.id, &next_move, game.moves.len())
+                            .await;
+                        let _ = sender_tx.send(GameEvent::MoveEvent { mv: next_move });
+                        if let Ok(Some(win)) = game.check_winning_move(&position) {
+                            game.winner = Some(win);
+                            if let Err(error) = sender_state.db.update_game_winner(&game).await {
+                                tracing::error!(?error, "Error update game winner");
+                            }
+                            let _ = sender_tx.send(GameEvent::Winner {
+                                moves: game.winner.unwrap(),
+                                last_move: next_move,
+                            });
+                            continue;
+                        }
+                        // if let  sender.send(Message::Text(
+                        //     serde_json::to_string(&GameEvent::MoveEvent { mv: next_move }).unwrap(),
+                        // ));
+                        let predict = game.find_bot_move(2);
+
+                        if let Some(pos) = predict {
+                            let bot_move = Move::new(Player::O, pos);
+                            game.play(&bot_move).unwrap();
+                            let _ = sender_tx.send(GameEvent::MoveEvent { mv: bot_move });
+                            let _ = sender_state
+                                .db
+                                .insert_move(&game.id, &bot_move, game.moves.len())
+                                .await;
+                            if let Ok(Some(win)) = game.check_winning_move(&pos) {
+                                game.winner = Some(win);
+                                if let Err(error) = sender_state.db.update_game_winner(&game).await
+                                {
+                                    tracing::error!(?error, "Error update game winner");
+                                }
+                                let _ = sender_tx.send(GameEvent::Winner {
+                                    moves: game.winner.unwrap(),
+                                    last_move: bot_move,
+                                });
+                                continue;
+                            }
+                        }
+                    } else {
+                        let _ = sender_tx.send(GameEvent::InvalidMove {
+                            player: game.next_player,
+                        });
+                    }
+                }
+                _ => {}
             }
         }
     });
@@ -297,8 +350,8 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
 
     tracing::info!("Closing websocket");
     {
-        // let mut rooms = state.rooms.lock().await;
-        // let room = rooms.get_mut(&room_id).unwrap();
+        let mut rooms = state.rooms.lock().await;
+        let room = rooms.get_mut(&room_id).unwrap();
         // let game = state.db.get_active_game(&room_id).await;
         // if let Ok(game) = game {
         //     let game = Game::try_from(game);
@@ -306,11 +359,11 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
         //         if game.x == Some(user_id) || game.o == Some(user_id) {}
         //     }
         // }
-        // room.users.remove(&user_id);
-        // tracing::info!("users: {:?}", room.users);
-        //
-        // if room.users.is_empty() {
-        //     rooms.remove(&room_id);
-        // }
+        room.users.remove(&user_id);
+        tracing::info!("users: {:?}", room.users);
+
+        if room.users.is_empty() {
+            rooms.remove(&room_id);
+        }
     }
 }
