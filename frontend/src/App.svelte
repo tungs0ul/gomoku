@@ -12,6 +12,10 @@
   import Home from '$lib/pages/Home.svelte'
   import NotFound from '$lib/pages/NotFound.svelte'
   import MobileNavbar from '$lib/MobileNavbar.svelte'
+  import { QueryClientProvider, QueryClient } from '@tanstack/svelte-query'
+  import { SvelteQueryDevtools } from '@tanstack/svelte-query-devtools'
+
+  const queryClient = new QueryClient()
 
   const routes = {
     '/': Home,
@@ -51,8 +55,13 @@
     <div class="hidden h-full sm:block">
       <Navbar />
     </div>
-    <main class="grid grow place-items-center p-2">
-      <Router {routes} />
-    </main>
+    <QueryClientProvider client={queryClient}>
+      {#if user.user !== null}
+        <main class="grid grow place-items-center p-2">
+          <Router {routes} />
+        </main>
+      {/if}
+      <SvelteQueryDevtools />
+    </QueryClientProvider>
   </div>
 {/if}

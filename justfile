@@ -24,3 +24,6 @@ backend:
 
 frontend:
     cd frontend && bun run dev
+
+pretty:
+    cd frontend && bun run format

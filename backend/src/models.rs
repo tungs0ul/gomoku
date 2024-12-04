@@ -1038,7 +1038,7 @@ pub enum GameEvent {
     PlayerLeft { player: Player, game: Uuid },
     PlayerJoined { player: Player, game: Uuid },
     NextPlayer { player: Player },
-    Chat { msg: String, user: String },
+    Chat { msg: String, user: String, id: Uuid },
     PlayAgain,
 }
 
