@@ -48,9 +48,12 @@ export type GameEvent =
   | {
       event: 'PlayAgain'
     }
-  | {
-      event: 'Chat'
-      msg: string
-      user: string
-      id: string
-    }
+  | ({
+      event: 'Message'
+    } & Message)
+
+export type Message = {
+  msg: string
+  user: string | null
+  id: string
+}

@@ -1029,16 +1029,28 @@ impl TryFrom<GameDb> for Game {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "event")]
 pub enum GameEvent {
-    Game { game: Box<Game> },
-    PredictBot { position: Position },
-    MoveEvent { mv: Move },
-    InvalidMove { player: Player },
-    Winner { moves: Vec<Move>, last_move: Move },
-    MiniMax { position: Position, score: i32 },
-    PlayerLeft { player: Player, game: Uuid },
-    PlayerJoined { player: Player, game: Uuid },
-    NextPlayer { player: Player },
-    Chat { msg: String, user: String, id: Uuid },
+    Game {
+        game: Box<Game>,
+    },
+    MoveEvent {
+        mv: Move,
+    },
+    InvalidMove {
+        player: Player,
+    },
+    Winner {
+        moves: Vec<Move>,
+        last_move: Move,
+    },
+    MiniMax {
+        position: Position,
+        score: i32,
+    },
+    Message {
+        msg: String,
+        user: Option<String>,
+        id: Uuid,
+    },
     PlayAgain,
 }
 

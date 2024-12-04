@@ -64,20 +64,74 @@ impl Db {
         Ok(())
     }
 
-    pub async fn update_game_winner(&self, game: &Game) -> Result<()> {
+    pub async fn update_game(&self, game: &Game) -> Result<()> {
         sqlx::query!(
-            r#"update game set winner = $2 where id = $1"#,
+            r#"update game set winner = $2, x = $3, o = $4 where id = $1"#,
             game.id,
-            serde_json::json!(game.winner)
+            serde_json::json!(game.winner),
+            game.x,
+            game.o,
         )
         .execute(&self.pool)
         .await?;
         Ok(())
     }
 
+    pub async fn update_game_status(&self, game_id: &Uuid, status: &GameStatus) -> Result<()> {
+        sqlx::query!(
+            r#"update game set status = $2 where id = $1"#,
+            game_id,
+            status as _
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn get_available_quick_games(&self, room_ids: &[Uuid]) -> Result<(Uuid, Game)> {
+        let game = sqlx::query_as!(
+            GameDb,
+            r#"
+            SELECT
+                g.room_id,
+                g.id,
+                r.room_type as "room_type: RoomType",
+                g.x,
+                g.o,
+                g.winner,
+                g.init_player as "init_player: Player",
+                jsonb_agg(
+                    jsonb_build_object(
+                        'row', gm.row,
+                        'col', gm.col,
+                        'player', gm.player
+                    ) ORDER BY gm.turn
+                ) AS moves
+            FROM
+                game g
+            join room r
+                on r.id = g.room_id
+            LEFT JOIN
+                game_move gm
+                ON g.id = gm.game_id
+            where g.room_id IN (SELECT unnest($1::uuid[])) and g.status != 'ended'
+            and ((g.x is null and g.o is not null) or (g.x is not null and g.o is null))
+            GROUP BY
+                g.id, r.room_type;
+        "#,
+            room_ids,
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        let room_id = game.room_id;
+        let game = Game::try_from(game)?;
+        Ok((room_id, game))
+    }
+
     pub async fn get_active_game_for_rooms(
         &self,
         room_ids: &[Uuid],
+        room_types: &[RoomType],
     ) -> Result<Vec<(Uuid, Game, RoomType)>> {
         let games = sqlx::query_as!(
             GameDb,
@@ -105,10 +159,12 @@ impl Db {
                 game_move gm
                 ON g.id = gm.game_id
             where g.room_id IN (SELECT unnest($1::uuid[])) and g.status != 'ended'
+            and r.room_type IN (select unnest($2::room_type[]))
             GROUP BY
                 g.id, r.room_type;
         "#,
             room_ids,
+            room_types as _
         )
         .fetch_all(&self.pool)
         .await?
@@ -165,12 +221,12 @@ impl Db {
         Ok(game)
     }
 
-    pub async fn end_game(&self, id: Uuid) -> Result<()> {
-        sqlx::query!("update game set status = 'ended' where id = $1", id)
-            .execute(&self.pool)
-            .await?;
-        Ok(())
-    }
+    // pub async fn end_game(&self, id: Uuid) -> Result<()> {
+    //     sqlx::query!("update game set status = 'ended' where id = $1", id)
+    //         .execute(&self.pool)
+    //         .await?;
+    //     Ok(())
+    // }
 
     pub async fn insert_move(&self, game_id: &Uuid, mv: &Move, turn: usize) -> Result<()> {
         sqlx::query!(

@@ -5,7 +5,7 @@ export const PORT = 11211
 
 export let api = {
   get_user: '/users',
-  create_game: '/games',
+  play: '/games',
   get_rooms: '/rooms'
 }
 

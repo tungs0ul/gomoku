@@ -5,13 +5,14 @@
   import { Input } from '$lib/components/ui/input'
   import SendHorizontal from 'lucide-svelte/icons/send-horizontal'
   import { _ } from 'svelte-i18n'
+  import type { Message } from '$lib/types'
 
   let {
     messages,
     socket,
     chatBody
   }: {
-    messages: { msg: string; user: string; id: string }[]
+    messages: Message[]
     socket: WebSocket | null
     chatBody: HTMLDivElement | null
   } = $props()
@@ -29,23 +30,29 @@
             class:self-start={msg.user !== user.user}
             class:self-end={msg.user === user.user}
             class="mb-1 mt-4 text-sm text-gray-500">
-            {msg.user.slice(0, 2)}
+            {msg.user?.slice(0, 2) ?? ''}
           </span>
         {/if}
-        <div
-          class={`mb-2 whitespace-pre-wrap rounded-2xl border px-4 py-2 shadow ${
-            msg.user === user.user
-              ? 'rounded-rb-0 self-end border-green-200 bg-green-100'
-              : 'rounded-lb-0 self-start border-gray-200 bg-white'
-          }`}>
-          {msg.msg}
-        </div>
+        {#if msg.user !== null}
+          <div
+            class={`mb-2 whitespace-pre-wrap rounded-2xl border px-4 py-2 shadow ${
+              msg.user === user.user
+                ? 'rounded-rb-0 self-end border-green-200 bg-green-100'
+                : 'rounded-lb-0 self-start border-gray-200 bg-white'
+            }`}>
+            {msg.msg}
+          </div>
+        {:else}
+          <span class="mb-1 mt-4 self-center text-sm text-gray-500">
+            {msg.msg}
+          </span>
+        {/if}
       </div>
     {/each}
   </div>
   <form
     class="flex items-center"
-    on:submit={(e) => {
+    onsubmit={(e) => {
       e.preventDefault()
       const formData = new FormData(e.currentTarget)
       const msg = formData.get('message')
@@ -53,7 +60,7 @@
         return
       }
       socket?.send(
-        JSON.stringify({ event: 'Chat', msg, user: '', id: user.user })
+        JSON.stringify({ event: 'Message', msg, user: 't', id: user.user })
       )
       e.currentTarget.reset()
     }}>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { HOST, PORT, user } from '$lib/store.svelte'
-  import type { Game, GameEvent, Player } from '$lib/types'
+  import type { Game, GameEvent, Message, Player } from '$lib/types'
   import GameRender from '$lib/Game.svelte'
   import { link, location } from 'svelte-spa-router'
   import { onDestroy, onMount } from 'svelte'
@@ -22,13 +22,15 @@
   let player = $state<Player | null>(null)
   let chatBody = $state<HTMLDivElement | null>(null)
 
+  let wsError = $state<boolean>(false)
+
   let xAudio = new Audio(PlayerXSound)
   let oAudio = new Audio(PlayerOSound)
   let victoryAudio = new Audio(VictorySound)
   let defeatedAudio = new Audio(DefeatedSound)
   let gameStartAudio = new Audio(GameStartSound)
 
-  let messages = $state<{ msg: string; user: string; id: string }[]>([])
+  let messages = $state<Message[]>([])
   let unReadMessages = $state<number>(0)
 
   onDestroy(() => {
@@ -45,10 +47,12 @@
       socket!.send('Hello world')
     }
     socket.onclose = (ev) => {
+      wsError = true
       // console.log('close', ev)
     }
     socket.onmessage = ({ data }) => {
       let msg: GameEvent = JSON.parse(data)
+      console.log(msg)
       switch (msg.event) {
         case 'Game':
           gameStartAudio.play()
@@ -103,7 +107,7 @@
           predicts = [...predicts]
           break
 
-        case 'Chat':
+        case 'Message':
           messages.push(msg)
           if (msg.user !== user.user) unReadMessages += 1
           setTimeout(() => {
@@ -133,7 +137,10 @@
 
     // game = game
     socket!.send(
-      JSON.stringify({ event: 'PredictBot', position: { row, col } })
+      JSON.stringify({
+        event: 'MoveEvent',
+        mv: { position: { row, col }, player }
+      })
     )
   }
 </script>
@@ -198,3 +205,22 @@
     </div>
   </div>
 </div>
+
+{#if wsError}
+  <div class="absolute inset-0 flex justify-center bg-gray-900/90 p-24">
+    <div
+      in:fly={{ y: -100 }}
+      class="grid h-fit w-96 place-items-center gap-4 rounded bg-white p-8">
+      <div class="">
+        <div class="text-2xl font-bold text-red-400">
+          {$_('there-is-something-wrong')}
+        </div>
+        <a href="/" use:link>
+          <Button variant="link">
+            {$_('to-main-menu')}
+          </Button>
+        </a>
+      </div>
+    </div>
+  </div>
+{/if}

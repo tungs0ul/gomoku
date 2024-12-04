@@ -1,7 +1,6 @@
 <script lang="ts">
   import { _ } from 'svelte-i18n'
   import Bot from 'lucide-svelte/icons/bot'
-  import Zap from 'lucide-svelte/icons/zap'
   import User from 'lucide-svelte/icons/user'
   import Board from '$lib/assets/board.jpeg'
   import { api, client, user } from '$lib/store.svelte'
@@ -9,17 +8,17 @@
   import { Button } from '$lib/components/ui/button'
 
   import * as Drawer from '$lib/components/ui/drawer'
-  // import { Button } from '$lib/components/ui/button'
+  import type { RoomType } from '$lib/types'
 
   let games = 345834985734
   let players = 1234567890
 
-  const createGame = async (single: boolean) => {
+  const createGame = async (roomType: RoomType) => {
     if (user.user === null) return
-    if (single) {
-      const { data } = await client.post(api.create_game, {
+    if (roomType) {
+      const { data } = await client.post(api.play, {
         user_id: user.user,
-        room_type: 'bot'
+        room_type: roomType
       })
       push(data)
     }
@@ -72,7 +71,7 @@
             <Drawer.Footer>
               <button
                 class="grid grid-cols-2 items-center gap-4 rounded-md bg-blue-400 py-6"
-                onclick={() => createGame(true)}>
+                onclick={() => createGame('bot')}>
                 <div class="flex justify-end">
                   <Bot class="h-6 w-6" />
                 </div>
@@ -81,20 +80,12 @@
 
               <button
                 class="grid grid-cols-2 items-center gap-4 rounded-md bg-green-400 py-6"
-                onclick={() => alert($_('feature-in-progress'))}>
+                onclick={() => createGame('normal')}>
                 <div class="flex justify-end">
                   <User class="h-6 w-6" />
                 </div>
                 <div class="flex">{$_('play-online')}</div>
               </button>
-              <!--              <button-->
-              <!--                class="grid grid-cols-2 items-center gap-4 rounded-md bg-red-400 py-6"-->
-              <!--                onclick={() => alert($_('feature-in-progress'))}>-->
-              <!--                <div class="flex justify-end">-->
-              <!--                  <Zap class="h-6 w-6" />-->
-              <!--                </div>-->
-              <!--                <div class="flex">{$_('play-random')}</div>-->
-              <!--              </button>-->
               <Drawer.Close>{$_('cancel')}</Drawer.Close>
             </Drawer.Footer>
           </Drawer.Content>

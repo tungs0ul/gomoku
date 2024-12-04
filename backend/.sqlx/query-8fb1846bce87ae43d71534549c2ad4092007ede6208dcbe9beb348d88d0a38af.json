@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update game set status = $2 where id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        {
+          "Custom": {
+            "name": "game_status",
+            "kind": {
+              "Enum": [
+                "playing",
+                "ended",
+                "ready"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8fb1846bce87ae43d71534549c2ad4092007ede6208dcbe9beb348d88d0a38af"
+}
