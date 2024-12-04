@@ -248,7 +248,7 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
             }
             let mut game = game.unwrap();
             match msg {
-                GameEvent::Chat { msg,  .. } => {
+                GameEvent::Chat { msg, .. } => {
                     let _ = sender_tx.send(GameEvent::Chat {
                         msg,
                         user: user_id.to_string(),
