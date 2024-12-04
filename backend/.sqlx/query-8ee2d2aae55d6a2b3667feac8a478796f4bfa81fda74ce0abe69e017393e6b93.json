@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into room(id, room_type) values ($1, $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        {
+          "Custom": {
+            "name": "room_type",
+            "kind": {
+              "Enum": [
+                "normal",
+                "bot",
+                "private"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8ee2d2aae55d6a2b3667feac8a478796f4bfa81fda74ce0abe69e017393e6b93"
+}

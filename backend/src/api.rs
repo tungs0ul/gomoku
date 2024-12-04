@@ -1,5 +1,5 @@
 use crate::db::Db;
-use crate::models::{Game, GameEvent, Move, Player};
+use crate::models::{Game, GameEvent, Move, Player, RoomType};
 use axum::extract::ws::{CloseFrame, Message, WebSocket};
 use axum::extract::{Path, State, WebSocketUpgrade};
 use axum::http::StatusCode;
@@ -8,6 +8,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use futures::SinkExt;
 use futures::StreamExt;
+use serde::Deserialize;
 use sqlx::PgPool;
 use std::collections::HashSet;
 use std::{collections::HashMap, sync::Arc};
@@ -24,13 +25,15 @@ pub struct AppState {
 struct RoomState {
     users: HashSet<Uuid>,
     tx: broadcast::Sender<GameEvent>,
+    room_type: RoomType,
 }
 
 impl RoomState {
-    fn new() -> Self {
+    fn new(room_type: RoomType) -> Self {
         Self {
             users: HashSet::new(),
             tx: broadcast::channel(32).0,
+            room_type,
         }
     }
 }
@@ -47,11 +50,11 @@ impl AppState {
 pub fn app(pool: PgPool) -> Router {
     let state = AppState::new(pool);
     Router::new()
-        .route("/health_check", get(health_check))
-        .route("/game/bot/:user_id", get(create_bot_game))
-        .route("/ws/:room_id/:user_id", get(websocket_handler))
-        .route("/room", get(get_rooms))
-        .route("/user", post(random_user))
+        .route("/health", get(health_check)) // Keep simple utility endpoints as-is
+        .route("/games", post(create_game)) // POST to create a bot game
+        .route("/ws/rooms/:room_id/users/:user_id", get(websocket_handler)) // Clarify WebSocket path
+        .route("/rooms", get(get_rooms)) // Pluralize resource names
+        .route("/users", post(random_user)) // Pluralize resource names for user creation
         .layer(CorsLayer::permissive())
         .with_state(Arc::new(state))
 }
@@ -62,7 +65,7 @@ async fn random_user() -> String {
 
 async fn get_rooms(
     State(state): State<Arc<AppState>>,
-) -> Result<Json<Vec<(Uuid, Game)>>, StatusCode> {
+) -> Result<Json<Vec<(Uuid, Game, RoomType)>>, StatusCode> {
     let rooms = state.rooms.lock().await;
     let rooms: Vec<Uuid> = { rooms.keys().map(|x| x.to_owned()).collect() };
     let rooms = state
@@ -72,7 +75,10 @@ async fn get_rooms(
         .map_err(|err| {
             tracing::error!(?err);
             StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        })?
+        .into_iter()
+        .filter(|(_, _, room_type)| !matches!(room_type, RoomType::Private))
+        .collect();
     Ok(Json(rooms))
 }
 
@@ -81,25 +87,32 @@ async fn health_check(State(_state): State<Arc<AppState>>) -> StatusCode {
     StatusCode::OK
 }
 
-async fn create_bot_game(
-    Path(user_id): Path<Uuid>,
+#[derive(Debug, Deserialize)]
+struct GamePayload {
+    user_id: Uuid,
+    room_type: RoomType,
+}
+
+async fn create_game(
     State(state): State<Arc<AppState>>,
+    Json(GamePayload { room_type, user_id }): Json<GamePayload>,
 ) -> Result<String, StatusCode> {
     let room_id = Uuid::new_v4();
     let game_id = Uuid::new_v4();
     let mut game = Game::new(game_id, Player::X);
     game.x = Some(user_id);
     game.o = Some(Uuid::nil());
+
     state
         .db
-        .new_game(&game, &room_id, &game.next_player)
+        .create_room(&room_id, &room_type, &game)
         .await
         .map_err(|error| {
             tracing::error!(?error);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    Ok(room_id.to_string())
+    Ok(format!("/ws/rooms/{room_id}/users/{user_id}"))
 }
 
 async fn websocket_handler(
@@ -151,17 +164,33 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
             .await;
     }
 
+    #[allow(unused_assignments)]
+    let mut game_type = RoomType::Normal;
     #[allow(unused)]
     let mut tx = None;
     {
         let mut rooms = state.rooms.lock().await;
         let room = rooms.get_mut(&room_id);
         if room.is_none() {
-            let room = RoomState::new();
+            let room_type = state.db.get_room_type(&room_id).await;
+            if room_type.is_err() {
+                tracing::error!("Room not found");
+                let _ = stream
+                    .send(Message::Close(Some(CloseFrame {
+                        code: 0,
+                        reason: "Room not found".into(),
+                    })))
+                    .await;
+                return;
+            }
+            let room_type = room_type.unwrap();
+            game_type = room_type.clone();
+            let room = RoomState::new(room_type);
             tx = Some(room.tx.clone());
             rooms.insert(room_id, room);
         } else {
             let room = room.unwrap();
+            game_type = room.room_type.clone();
             if room.users.contains(&user_id) {
                 let _ = stream
                     .send(Message::Close(Some(CloseFrame {
@@ -219,8 +248,8 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
             }
             let mut game = game.unwrap();
             match msg {
-                GameEvent::Chat { msg } => {
-                    let _ = sender_tx.send(GameEvent::Chat { msg });
+                GameEvent::Chat { msg, user } => {
+                    let _ = sender_tx.send(GameEvent::Chat { msg, user });
                 }
                 GameEvent::MoveEvent { mv } => {
                     if mv.player == Player::O && Some(user_id) != game.o {
@@ -249,41 +278,52 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
                     }
                 }
                 GameEvent::PlayAgain => {
-                    if game.o == Some(Uuid::nil()) {
-                        if game.x != Some(user_id) {
-                            continue;
-                        }
-                        let _ = sender_state.db.end_game(game.id).await;
-                        let next_player = game.next_player;
-                        let mut game = Game::new(Uuid::new_v4(), next_player);
-                        game.x = Some(user_id);
-                        game.o = Some(Uuid::nil());
-                        if let Err(error) = sender_state
-                            .db
-                            .new_game(&game, &room_id, &game.next_player)
-                            .await
-                        {
-                            tracing::error!(?error, "Error saving game");
-                        }
-                        if game.next_player == Player::O {
-                            let predict = game.find_bot_move(2);
-                            if let Some(pos) = predict {
-                                let bot_move = Move::new(Player::O, pos);
-                                game.play(&bot_move).unwrap();
-                                let _ = sender_tx.send(GameEvent::MoveEvent { mv: bot_move });
-                                let _ = sender_state
-                                    .db
-                                    .insert_move(&game.id, &bot_move, game.moves.len())
-                                    .await;
+                    if game.o != Some(user_id) && game.x != Some(user_id) {
+                        continue;
+                    }
+                    match game_type {
+                        RoomType::Bot => {
+                            if game.x != Some(user_id) {
+                                continue;
                             }
+                            let _ = sender_state.db.end_game(game.id).await;
+                            let next_player = game.next_player;
+                            let mut game = Game::new(Uuid::new_v4(), next_player);
+                            game.x = Some(user_id);
+                            game.o = Some(Uuid::nil());
+                            if let Err(error) = sender_state
+                                .db
+                                .new_game(&game, &room_id, &game.next_player)
+                                .await
+                            {
+                                tracing::error!(?error, "Error saving game");
+                            }
+                            if game.next_player == Player::O {
+                                let predict = game.find_bot_move(2);
+                                if let Some(pos) = predict {
+                                    let bot_move = Move::new(Player::O, pos);
+                                    game.play(&bot_move).unwrap();
+                                    let _ = sender_tx.send(GameEvent::MoveEvent { mv: bot_move });
+                                    let _ = sender_state
+                                        .db
+                                        .insert_move(&game.id, &bot_move, game.moves.len())
+                                        .await;
+                                }
+                            }
+                            let _ = sender_tx.send(GameEvent::Game {
+                                game: Box::new(game),
+                            });
                         }
-                        let _ = sender_tx.send(GameEvent::Game {
-                            game: Box::new(game),
-                        });
+                        _ => {
+                            todo!("Feature in progress")
+                        }
                     }
                 }
 
                 GameEvent::PredictBot { position } => {
+                    if !matches!(game_type, RoomType::Bot) {
+                        continue;
+                    }
                     if game.x != Some(user_id) {
                         continue;
                     }

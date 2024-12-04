@@ -1,4 +1,4 @@
-use crate::models::{Game, GameDb, Move, Player};
+use crate::models::{Game, GameDb, Move, Player, RoomType};
 use anyhow::Result;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -13,9 +13,46 @@ impl Db {
         Self { pool }
     }
 
+    pub async fn get_room_type(&self, room_id: &Uuid) -> Result<RoomType> {
+        let room_type = sqlx::query_scalar!(
+            r#"select room_type as "room_type: RoomType" from room where id = $1"#,
+            room_id
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(room_type)
+    }
+    pub async fn create_room(
+        &self,
+        room_id: &Uuid,
+        room_type: &RoomType,
+        game: &Game,
+    ) -> Result<()> {
+        let mut tx = self.pool.begin().await?;
+        sqlx::query!(
+            r#"insert into room(id, room_type) values ($1, $2)"#,
+            room_id,
+            room_type as _
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "INSERT INTO game (id, room_id, x, o, init_player) VALUES ($1, $2, $3, $4, $5)",
+            game.id,
+            room_id,
+            game.x,
+            game.o,
+            game.next_player as _
+        )
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
     pub async fn new_game(&self, game: &Game, room_id: &Uuid, init_player: &Player) -> Result<()> {
         sqlx::query!(
-            "INSERT INTO game (id, room, x, o, init_player) VALUES ($1, $2, $3, $4, $5)",
+            "INSERT INTO game (id, room_id, x, o, init_player) VALUES ($1, $2, $3, $4, $5)",
             game.id,
             room_id,
             game.x,
@@ -38,13 +75,17 @@ impl Db {
         Ok(())
     }
 
-    pub async fn get_active_game_for_rooms(&self, room_ids: &[Uuid]) -> Result<Vec<(Uuid, Game)>> {
+    pub async fn get_active_game_for_rooms(
+        &self,
+        room_ids: &[Uuid],
+    ) -> Result<Vec<(Uuid, Game, RoomType)>> {
         let games = sqlx::query_as!(
             GameDb,
             r#"
             SELECT
-                g.room,
+                g.room_id,
                 g.id,
+                r.room_type as "room_type: RoomType",
                 g.x,
                 g.o,
                 g.winner,
@@ -58,12 +99,14 @@ impl Db {
                 ) AS moves
             FROM
                 game g
+            join room r
+                on r.id = g.room_id
             LEFT JOIN
                 game_move gm
                 ON g.id = gm.game_id
-            where g.room IN (SELECT unnest($1::uuid[])) and g.status != 'ended'
+            where g.room_id IN (SELECT unnest($1::uuid[])) and g.status != 'ended'
             GROUP BY
-                g.id;
+                g.id, r.room_type;
         "#,
             room_ids,
         )
@@ -71,10 +114,11 @@ impl Db {
         .await?
         .into_iter()
         .filter_map(|game| {
-            let room = game.room;
+            let room = game.room_id;
+            let room_type = game.room_type.clone();
             let game = Game::try_from(game);
             match game {
-                Ok(game) => Some((room, game)),
+                Ok(game) => Some((room, game, room_type)),
                 _ => None,
             }
         })
@@ -87,11 +131,12 @@ impl Db {
             GameDb,
             r#"
             SELECT
-                g.room,
+                g.room_id,
                 g.id,
                 g.x,
                 g.o,
                 g.winner,
+                r.room_type as "room_type: RoomType",
                 g.init_player as "init_player: Player",
                 jsonb_agg(
                     jsonb_build_object(
@@ -102,12 +147,14 @@ impl Db {
                 ) AS moves
             FROM
                 game g
+            join room r
+                on r.id = g.room_id
             LEFT JOIN
                 game_move gm
                 ON g.id = gm.game_id
-            where g.room = $1 and g.status != 'ended'
+            where g.room_id = $1 and g.status != 'ended'
             GROUP BY
-                g.id;
+                g.id, r.room_type;
         "#,
             room_id,
         )

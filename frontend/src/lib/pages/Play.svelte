@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { user } from '$lib/store.svelte'
+  import { HOST, PORT, user } from '$lib/store.svelte'
   import type { Game, GameEvent, Move, Player } from '$lib/types'
   import { toast } from 'svelte-sonner'
   import { _ } from 'svelte-i18n'
@@ -35,9 +35,8 @@
     //   .post(`http://localhost:11211/api/play/bot/${user.user}`)
     //   .then(({ data }) => {
     //     console.log(data)
-
     socket = new WebSocket(
-      `ws://localhost:11211/${$location.replace('/play/', 'ws/')}`
+      `ws://${HOST}:${PORT}${$location}`
     )
     socket.onopen = () => {
       socket!.send('Hello world')

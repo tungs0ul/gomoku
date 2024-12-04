@@ -2,12 +2,12 @@ mod common;
 
 #[cfg(test)]
 mod tests {
+    // use http_body_util::BodyExt;
+    use crate::common;
     use axum::{
         body::Body,
         http::{Request, StatusCode},
     };
-    // use http_body_util::BodyExt;
-    use crate::common;
 
     use tower::ServiceExt;
     use uuid::Uuid;
@@ -20,7 +20,7 @@ mod tests {
         let response = router
             .oneshot(
                 Request::builder()
-                    .uri("/health_check")
+                    .uri("/health")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -51,7 +51,5 @@ mod tests {
         assert!(res.is_ok());
         let res = res.unwrap().text().await;
         assert!(res.is_ok());
-        let id = Uuid::parse_str(res.unwrap().as_str());
-        assert!(id.is_ok());
     }
 }

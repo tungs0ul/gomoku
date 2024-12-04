@@ -1,4 +1,5 @@
 export type Player = "x" | "o";
+export type RoomType = "normal" | "bot" | "private"
 export type Position = {
     row: number
     col: number
