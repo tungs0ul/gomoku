@@ -35,9 +35,7 @@
     //   .post(`http://localhost:11211/api/play/bot/${user.user}`)
     //   .then(({ data }) => {
     //     console.log(data)
-    socket = new WebSocket(
-      `ws://${HOST}:${PORT}${$location}`
-    )
+    socket = new WebSocket(`ws://${HOST}:${PORT}${$location}`)
     socket.onopen = () => {
       socket!.send('Hello world')
     }
@@ -131,11 +129,9 @@
           <div class="absolute inset-0 flex justify-center bg-gray-400/50 p-24">
             <div
               in:fly={{ y: -100 }}
-              class="grid h-fit place-items-center gap-4 rounded bg-white p-8"
-            >
+              class="grid h-fit place-items-center gap-4 rounded bg-white p-8">
               <div
-                class="inline-block bg-gradient-to-r from-blue-600 via-green-500 to-indigo-400 bg-clip-text text-6xl font-bold text-transparent"
-              >
+                class="inline-block bg-gradient-to-r from-blue-600 via-green-500 to-indigo-400 bg-clip-text text-6xl font-bold text-transparent">
                 {#if player === game.winner[0].player}
                   <div>You Won</div>
                 {:else}
@@ -146,8 +142,7 @@
                 variant="destructive"
                 on:click={() => {
                   socket!.send(JSON.stringify({ event: 'PlayAgain' }))
-                }}>Play Again</Button
-              >
+                }}>Play Again</Button>
               <a href="/" use:link>Exit</a>
             </div>
           </div>

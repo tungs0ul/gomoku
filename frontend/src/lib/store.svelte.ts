@@ -1,20 +1,17 @@
 import axios from 'axios'
 
-export const HOST = "localhost"
+export const HOST = 'localhost'
 export const PORT = 11211
 
-
 export let api = {
-  'get_user': 'user',
-  'create_game': '/games',
-  'get_rooms': '/rooms',
+  get_user: 'user',
+  create_game: '/games',
+  get_rooms: '/rooms'
 }
 
 export let client = axios.create({
   baseURL: `http://${HOST}:${PORT}`
 })
-
-
 
 const createUser = () => {
   let state = $state<string | null>(null)
@@ -39,7 +36,6 @@ const createUser = () => {
             localStorage.setItem('user_id', user)
           })
           .catch((err) => {
-
             console.error(err)
           })
       }
@@ -51,5 +47,3 @@ const createUser = () => {
 }
 
 export const user = createUser()
-
-

@@ -14,13 +14,11 @@
   <div class="flex gap-2">
     <a href="/sign-up" use:link class="flex justify-center px-2">
       <Button variant="secondary" size="sm" class="w-full"
-        >{$_('sign-up')}</Button
-      >
+        >{$_('sign-up')}</Button>
     </a>
     <a href="/sign-in" use:link class="flex justify-center px-2">
       <Button variant="destructive" size="sm" class="w-full"
-        >{$_('login')}</Button
-      >
+        >{$_('login')}</Button>
     </a>
   </div>
 </div>
