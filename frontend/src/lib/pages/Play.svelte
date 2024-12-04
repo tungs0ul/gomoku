@@ -1,8 +1,6 @@
 <script lang="ts">
   import { HOST, PORT, user } from '$lib/store.svelte'
-  import type { Game, GameEvent, Move, Player } from '$lib/types'
-  import { toast } from 'svelte-sonner'
-  import { _ } from 'svelte-i18n'
+  import type { Game, GameEvent, Player } from '$lib/types'
   import GameRender from '$lib/Game.svelte'
   import { link, location } from 'svelte-spa-router'
   import { onDestroy, onMount } from 'svelte'
@@ -12,19 +10,26 @@
   import DefeatedSound from '$lib/assets/sound/defeat.mp3'
   import GameStartSound from '$lib/assets/sound/game-start.mp3'
   import Button from '$lib/components/ui/button/button.svelte'
-  import { fly, scale } from 'svelte/transition'
+  import { fly } from 'svelte/transition'
+  import { _ } from 'svelte-i18n'
+  import Chat from '$lib/components/Chat.svelte'
+  import * as Drawer from '$lib/components/ui/drawer'
+  import MessageSquareMore from 'lucide-svelte/icons/message-square-more'
 
   let game = $state<Game | null>(null)
   let predicts = $state<{ row: number; col: number; score: number }[]>([])
   let socket = $state<WebSocket | null>(null)
   let player = $state<Player | null>(null)
-  let playAgain = $state(false)
+  let chatBody = $state<HTMLDivElement | null>(null)
 
   let xAudio = new Audio(PlayerXSound)
   let oAudio = new Audio(PlayerOSound)
   let victoryAudio = new Audio(VictorySound)
   let defeatedAudio = new Audio(DefeatedSound)
   let gameStartAudio = new Audio(GameStartSound)
+
+  let messages = $state<{ msg: string; user: string; id: string }[]>([])
+  let unReadMessages = $state<number>(0)
 
   onDestroy(() => {
     socket?.close()
@@ -44,60 +49,73 @@
     }
     socket.onmessage = ({ data }) => {
       let msg: GameEvent = JSON.parse(data)
-      if (msg.event === 'Game') {
-        gameStartAudio.play()
-        game = msg.game
-        player =
-          msg.game.x === user.user ? 'x' : msg.game.o === user.user ? 'o' : null
-      }
-      if (msg.event === 'MoveEvent') {
-        if (game === null) return
-        // console.log(
-        //   `game.board[${msg.mv.position.row}][${msg.mv.position.col}] = Some(Player::${msg.mv.player})`
-        // )
-        game.moves.push(msg.mv)
-        game.board[msg.mv.position.row][msg.mv.position.col] = msg.mv.player
-        if (player !== msg.mv.player) {
-          if (msg.mv.player === 'o') {
-            xAudio.play()
-          } else {
-            oAudio.play()
+      switch (msg.event) {
+        case 'Game':
+          gameStartAudio.play()
+          game = msg.game
+          player =
+            msg.game.x === user.user
+              ? 'x'
+              : msg.game.o === user.user
+                ? 'o'
+                : null
+          break
+        case 'MoveEvent':
+          if (game === null) break
+          game.moves.push(msg.mv)
+          game.board[msg.mv.position.row][msg.mv.position.col] = msg.mv.player
+          if (player !== msg.mv.player) {
+            if (msg.mv.player === 'o') {
+              xAudio.play()
+            } else {
+              oAudio.play()
+            }
           }
-        }
-        game.next_player = msg.mv.player === 'x' ? 'o' : 'x'
-        predicts = []
+          game.next_player = msg.mv.player === 'x' ? 'o' : 'x'
+          predicts = []
+          break
+        case 'Winner':
+          if (game === null) break
+          if (game === null) return
+          if (msg.last_move.player === player) {
+            victoryAudio.play()
+          } else {
+            defeatedAudio.play()
+          }
+          game.board[msg.last_move.position.row][msg.last_move.position.col] =
+            msg.last_move.player
+          game.moves.push(msg.last_move)
+          predicts = []
+          game.winner = msg.moves
+          break
+
+        case 'MiniMax':
+          if (game === null) return
+          // predicts.push({ ...msg.position, score: msg.score })
+          let idx = predicts.findIndex(
+            (p) => p.row === msg.position.row && p.col === msg.position.col
+          )
+          if (idx === -1) {
+            predicts.push({ ...msg.position, score: msg.score })
+          } else {
+            predicts[idx].score = msg.score
+          }
+          predicts = [...predicts]
+          break
+
+        case 'Chat':
+          messages.push(msg)
+          if (msg.user !== user.user) unReadMessages += 1
+          setTimeout(() => {
+            chatBody?.scrollTo({
+              top: chatBody.scrollHeight,
+              behavior: 'smooth'
+            })
+          }, 0)
+          break
+        default:
+          break
       }
-      if (msg.event === 'Winner') {
-        if (game === null) return
-        if (msg.last_move.player === player) {
-          victoryAudio.play()
-        } else {
-          defeatedAudio.play()
-        }
-        game.board[msg.last_move.position.row][msg.last_move.position.col] =
-          msg.last_move.player
-        game.moves.push(msg.last_move)
-        predicts = []
-        game.winner = msg.moves
-      }
-      if (msg.event === 'InvalidMove') {
-        if (game === null) return
-        game.moves.pop()
-      }
-      if (msg.event === 'MiniMax') {
-        if (game === null) return
-        // predicts.push({ ...msg.position, score: msg.score })
-        let idx = predicts.findIndex(
-          (p) => p.row === msg.position.row && p.col === msg.position.col
-        )
-        if (idx === -1) {
-          predicts.push({ ...msg.position, score: msg.score })
-        } else {
-          predicts[idx].score = msg.score
-        }
-        predicts = [...predicts]
-      }
-      // console.log(msg)
     }
   })
 
@@ -120,22 +138,24 @@
   }
 </script>
 
-<div class="sm:lex-row flex h-full w-full flex-col p-2 sm:p-4">
-  <div class="flex flex-col sm:flex-row">
-    <div class="grid h-full w-full place-items-center">
+<div
+  class="sm:lex-row flex h-full max-h-screen w-full flex-col overflow-auto p-2 sm:p-4">
+  <div
+    class="flex h-full w-full flex-col items-center gap-4 overflow-auto sm:flex-row">
+    <div class="relative grid h-fit w-fit place-items-center">
       {#if game !== null}
         <GameRender {game} {play} {player} {predicts} />
         {#if game.winner && player !== null}
-          <div class="absolute inset-0 flex justify-center bg-gray-400/50 p-24">
+          <div class="absolute inset-0 flex justify-center bg-gray-900/60 p-24">
             <div
               in:fly={{ y: -100 }}
-              class="grid h-fit place-items-center gap-4 rounded bg-white p-8">
+              class="grid h-fit w-96 place-items-center gap-4 rounded bg-white p-8">
               <div
                 class="inline-block bg-gradient-to-r from-blue-600 via-green-500 to-indigo-400 bg-clip-text text-6xl font-bold text-transparent">
                 {#if player === game.winner[0].player}
-                  <div>You Won</div>
+                  <div>{$_('won')}</div>
                 {:else}
-                  <div>You Lost</div>
+                  <div>{$_('lost')}</div>
                 {/if}
               </div>
               <Button
@@ -149,6 +169,32 @@
         {/if}
       {/if}
     </div>
-    <div class="grow">history</div>
+    <div class="block sm:hidden">
+      <Drawer.Root>
+        <Drawer.Trigger>
+          <Button class="absolute bottom-4 left-4" variant="outline">
+            <MessageSquareMore />
+            {#if unReadMessages > 0}
+              <div
+                class="absolute right-0 top-0 h-4 w-4 rounded-full bg-red-400 text-xs">
+                {unReadMessages}
+              </div>
+            {/if}
+          </Button>
+        </Drawer.Trigger>
+        <Drawer.Content class="h-full">
+          <Drawer.Header>
+            <Drawer.Title>{$_('trash-talk')}</Drawer.Title>
+          </Drawer.Header>
+          <div class="h-full grow">
+            <Chat {messages} {socket} {chatBody} />
+          </div>
+        </Drawer.Content>
+      </Drawer.Root>
+    </div>
+
+    <div class="hidden h-full grow sm:block">
+      <Chat {messages} {socket} {chatBody} />
+    </div>
   </div>
 </div>

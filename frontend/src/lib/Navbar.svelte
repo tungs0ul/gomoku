@@ -19,16 +19,16 @@
     </div> -->
   </div>
 
-  <div class="flex grow flex-col gap-2">
-    <a href="/sign-up" use:link class="flex justify-center px-2">
-      <Button variant="secondary" class="w-full">{$_('sign-up')}</Button>
-    </a>
-    <a href="/sign-in" use:link class="flex justify-center px-2">
-      <Button variant="destructive" class="w-full">{$_('login')}</Button>
-    </a>
-  </div>
+  <!--  <div class="flex grow flex-col gap-2">-->
+  <!--    <a href="/sign-up" use:link class="flex justify-center px-2">-->
+  <!--      <Button variant="secondary" class="w-full">{$_('sign-up')}</Button>-->
+  <!--    </a>-->
+  <!--    <a href="/sign-in" use:link class="flex justify-center px-2">-->
+  <!--      <Button variant="destructive" class="w-full">{$_('login')}</Button>-->
+  <!--    </a>-->
+  <!--  </div>-->
 
-  <a use:link href="/settings" class="flex items-center gap-2 px-4 py-8">
+  <a class="flex items-center gap-2 px-4 py-8" href="/settings" use:link>
     <div><Settings /></div>
     <div>{$_('settings')}</div>
   </a>

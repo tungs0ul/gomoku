@@ -76,7 +76,7 @@
                 <div class="flex justify-end">
                   <Bot class="h-6 w-6" />
                 </div>
-                <div class="flex">{$_('play-bot')}</div>
+                <div class="flex">{$_('play-with-bot')}</div>
               </button>
 
               <button
@@ -85,16 +85,16 @@
                 <div class="flex justify-end">
                   <User class="h-6 w-6" />
                 </div>
-                <div class="flex">{$_('play-friend')}</div>
+                <div class="flex">{$_('play-online')}</div>
               </button>
-              <button
-                class="grid grid-cols-2 items-center gap-4 rounded-md bg-red-400 py-6"
-                onclick={() => alert($_('feature-in-progress'))}>
-                <div class="flex justify-end">
-                  <Zap class="h-6 w-6" />
-                </div>
-                <div class="flex">{$_('play-random')}</div>
-              </button>
+              <!--              <button-->
+              <!--                class="grid grid-cols-2 items-center gap-4 rounded-md bg-red-400 py-6"-->
+              <!--                onclick={() => alert($_('feature-in-progress'))}>-->
+              <!--                <div class="flex justify-end">-->
+              <!--                  <Zap class="h-6 w-6" />-->
+              <!--                </div>-->
+              <!--                <div class="flex">{$_('play-random')}</div>-->
+              <!--              </button>-->
               <Drawer.Close>{$_('cancel')}</Drawer.Close>
             </Drawer.Footer>
           </Drawer.Content>

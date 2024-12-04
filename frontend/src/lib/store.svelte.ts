@@ -4,7 +4,7 @@ export const HOST = 'localhost'
 export const PORT = 11211
 
 export let api = {
-  get_user: 'user',
+  get_user: '/users',
   create_game: '/games',
   get_rooms: '/rooms'
 }
@@ -32,8 +32,8 @@ const createUser = () => {
         client
           .post(api.get_user)
           .then(({ data }: { data: string }) => {
-            user = data
-            localStorage.setItem('user_id', user)
+            state = data
+            localStorage.setItem('user_id', data)
           })
           .catch((err) => {
             console.error(err)

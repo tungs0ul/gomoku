@@ -48,3 +48,9 @@ export type GameEvent =
   | {
       event: 'PlayAgain'
     }
+  | {
+      event: 'Chat'
+      msg: string
+      user: string
+      id: string
+    }

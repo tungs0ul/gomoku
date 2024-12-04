@@ -248,8 +248,12 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
             }
             let mut game = game.unwrap();
             match msg {
-                GameEvent::Chat { msg, user } => {
-                    let _ = sender_tx.send(GameEvent::Chat { msg, user });
+                GameEvent::Chat { msg, user, .. } => {
+                    let _ = sender_tx.send(GameEvent::Chat {
+                        msg,
+                        user: user_id.to_string(),
+                        id: Uuid::new_v4(),
+                    });
                 }
                 GameEvent::MoveEvent { mv } => {
                     if mv.player == Player::O && Some(user_id) != game.o {
