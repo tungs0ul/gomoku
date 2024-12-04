@@ -6,6 +6,7 @@
   import { api, client, user } from '$lib/store.svelte'
   import { link, push } from 'svelte-spa-router'
   import { Button } from '$lib/components/ui/button'
+  import { toast } from 'svelte-sonner'
 
   import * as Drawer from '$lib/components/ui/drawer'
   import type { RoomType } from '$lib/types'
@@ -16,11 +17,18 @@
   const createGame = async (roomType: RoomType) => {
     if (user.user === null) return
     if (roomType) {
-      const { data } = await client.post(api.play, {
-        user_id: user.user,
-        room_type: roomType
-      })
-      push(data)
+      try {
+        const { data } = await client.post(api.play, {
+          user_id: user.user,
+          room_type: roomType
+        })
+        push(data)
+      } catch (e) {
+        console.error(e)
+        toast.error($_('there-is-something-wrong-please-try-again-later'), {
+          position: 'top-center'
+        })
+      }
     }
   }
 </script>
@@ -59,7 +67,8 @@
         <Drawer.Root>
           <Drawer.Trigger>
             <Button class="w-full py-12 text-4xl" size="lg" variant="default"
-              >{$_('play')}</Button>
+              >{$_('play')}</Button
+            >
           </Drawer.Trigger>
           <Drawer.Content>
             <Drawer.Header>
@@ -71,7 +80,8 @@
             <Drawer.Footer>
               <button
                 class="grid grid-cols-2 items-center gap-4 rounded-md bg-blue-400 py-6"
-                onclick={() => createGame('bot')}>
+                onclick={() => createGame('bot')}
+              >
                 <div class="flex justify-end">
                   <Bot class="h-6 w-6" />
                 </div>
@@ -80,7 +90,8 @@
 
               <button
                 class="grid grid-cols-2 items-center gap-4 rounded-md bg-green-400 py-6"
-                onclick={() => createGame('normal')}>
+                onclick={() => createGame('normal')}
+              >
                 <div class="flex justify-end">
                   <User class="h-6 w-6" />
                 </div>
