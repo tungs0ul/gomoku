@@ -974,13 +974,14 @@ impl Position {
 }
 
 pub struct GameDb {
-    pub room: Uuid,
+    pub room_id: Uuid,
     pub id: Uuid,
     pub x: Option<Uuid>,
     pub o: Option<Uuid>,
     pub moves: serde_json::Value,
     pub winner: serde_json::Value,
     pub init_player: Player,
+    pub room_type: RoomType,
 }
 
 #[derive(Deserialize)]
@@ -1037,6 +1038,15 @@ pub enum GameEvent {
     PlayerLeft { player: Player, game: Uuid },
     PlayerJoined { player: Player, game: Uuid },
     NextPlayer { player: Player },
-    Chat { msg: String },
+    Chat { msg: String, user: String },
     PlayAgain,
+}
+
+#[derive(Debug, sqlx::Type, Serialize, Deserialize, Clone)]
+#[sqlx(type_name = "room_type", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum RoomType {
+    Private,
+    Bot,
+    Normal,
 }

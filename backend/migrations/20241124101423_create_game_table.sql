@@ -2,9 +2,16 @@
 create type game_status as enum ('playing', 'ended', 'ready');
 create type player as enum ('x', 'o');
 
+create type room_type as enum ('normal', 'bot', 'private');
+
+create table room (
+    id uuid not null primary key,
+    room_type room_type not null default 'normal'
+);
+
 create table game (
     id uuid not null primary key,
-    room uuid not null,
+    room_id uuid not null references room(id) on delete cascade,
     status game_status not null default 'ready',
     x_ready bool not null default false,
     o_ready bool not null default false,

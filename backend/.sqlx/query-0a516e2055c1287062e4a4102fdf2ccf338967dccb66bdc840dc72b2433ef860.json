@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO game (id, room, x, o, init_player) VALUES ($1, $2, $3, $4, $5)",
+  "query": "INSERT INTO game (id, room_id, x, o, init_player) VALUES ($1, $2, $3, $4, $5)",
   "describe": {
     "columns": [],
     "parameters": {
@@ -24,5 +24,5 @@
     },
     "nullable": []
   },
-  "hash": "a729fc95109e10758b17c6ca6de2934dde0a08b7bec9344ae36e560066815e5f"
+  "hash": "0a516e2055c1287062e4a4102fdf2ccf338967dccb66bdc840dc72b2433ef860"
 }
