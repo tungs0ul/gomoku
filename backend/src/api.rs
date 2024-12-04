@@ -159,7 +159,7 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
                 serde_json::to_string(&GameEvent::Game {
                     game: Box::new(game),
                 })
-                    .unwrap(),
+                .unwrap(),
             ))
             .await;
     }
