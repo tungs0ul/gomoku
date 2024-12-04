@@ -26,7 +26,7 @@
       asyncComponent: () => import('$lib/pages/Rooms.svelte')
     }),
 
-    '/play/*': wrap({
+    '/ws/*': wrap({
       // @ts-ignore
       asyncComponent: () => import('$lib/pages/Play.svelte')
     }),
@@ -36,33 +36,6 @@
   }
 
   user.init()
-  const createRoom = async () => {
-    if (user.user === null) {
-      return
-    }
-    axios
-      .post('http://localhost:11211/api/rooms', { user_id: user.user })
-      .then(({ data }) => {
-        const socket = new WebSocket(
-          `ws://localhost:11211/ws/${data}/${user.user}`
-        )
-        socket.onopen = () => {
-          console.log('open')
-          socket.send('Hello world')
-        }
-        socket.onmessage = ({ data }) => {
-          console.log('msg', data)
-        }
-      })
-  }
-
-  const getRooms = async () => {
-    const { data } = await axios.get('http://localhost:11211/api/rooms')
-  }
-
-  // $effect(() => {
-  //   getRooms()
-  // })
 </script>
 
 <!-- <button onclick={createRoom}>Create room</button> -->
