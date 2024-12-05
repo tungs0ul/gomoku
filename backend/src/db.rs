@@ -1,4 +1,4 @@
-use crate::models::{Game, GameDb, GameStatus, GameType, Move, Player};
+use crate::models::{Game, GameDb, GameStatus, GameType, Move, Player, PlayerStatus};
 use anyhow::Result;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -31,29 +31,29 @@ impl Db {
 
     pub async fn update_game(&self, game: &Game) -> Result<()> {
         sqlx::query!(
-            r#"update game set winner = $2, x = $3, o = $4, status = $5, x_ready = $6, o_ready = $7 where id = $1"#,
+            r#"update game set winner = $2, x = $3, o = $4, status = $5, x_status = $6, o_status = $7 where id = $1"#,
             game.id,
             serde_json::json!(game.winner),
             game.x,
             game.o,
             game.status as _,
-            game.x_ready,
-            game.o_ready,
+            game.x_status as _,
+            game.o_status as _,
         )
         .execute(&self.pool)
         .await?;
         Ok(())
     }
 
-    pub async fn get_available_quick_games(&self, room_ids: &[Uuid]) -> Result<(Uuid, Game)> {
+    pub async fn get_available_quick_games(&self, room_ids: &[Uuid]) -> Result<Game> {
         let game = sqlx::query_as!(
             GameDb,
             r#"
             SELECT
                 g.room_id,
                 g.id,
-                g.x_ready,
-                g.o_ready,
+                g.x_status as "x_status: PlayerStatus",
+                g.o_status as "o_status: PlayerStatus",
                 g.status as "status: GameStatus",
                 g.game_type as "game_type: GameType",
                 g.x,
@@ -74,16 +74,14 @@ impl Db {
                 ON g.id = gm.game_id
             where g.room_id IN (SELECT unnest($1::uuid[])) and g.status != 'ended'
             and ((g.x is null and g.o is not null) or (g.x is not null and g.o is null))
-            GROUP BY
-                g.id;
+            GROUP BY g.id
         "#,
-            room_ids,
+            room_ids
         )
         .fetch_one(&self.pool)
         .await?;
-        let room_id = game.room_id;
         let game = Game::try_from(game)?;
-        Ok((room_id, game))
+        Ok(game)
     }
 
     pub async fn get_active_game_for_rooms(
@@ -99,9 +97,9 @@ impl Db {
                 g.id,
                 g.game_type as "game_type: GameType",
                 g.x,
-                g.x_ready,
+                g.x_status as "x_status: PlayerStatus",
                 g.status as "status: GameStatus",
-                g.o_ready,
+                g.o_status as "o_status: PlayerStatus",
                 g.o,
                 g.winner,
                 g.init_player as "init_player: Player",
@@ -149,8 +147,8 @@ impl Db {
                 g.x,
                 g.o,
                 g.status as "status: GameStatus",
-                g.x_ready,
-                g.o_ready,
+                g.x_status as "x_status: PlayerStatus",
+                g.o_status as "o_status: PlayerStatus",
                 g.winner,
                 g.game_type as "game_type: GameType",
                 g.init_player as "init_player: Player",

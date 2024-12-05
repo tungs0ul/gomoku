@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                g.room_id,\n                g.id,\n                g.x_ready,\n                g.o_ready,\n                g.status as \"status: GameStatus\",\n                g.game_type as \"game_type: GameType\",\n                g.x,\n                g.o,\n                g.winner,\n                g.init_player as \"init_player: Player\",\n                jsonb_agg(\n                    jsonb_build_object(\n                        'row', gm.row,\n                        'col', gm.col,\n                        'player', gm.player\n                    ) ORDER BY gm.turn\n                ) AS moves\n            FROM\n                game g\n            LEFT JOIN\n                game_move gm\n                ON g.id = gm.game_id\n            where g.room_id IN (SELECT unnest($1::uuid[])) and g.status != 'ended'\n            and ((g.x is null and g.o is not null) or (g.x is not null and g.o is null))\n            GROUP BY\n                g.id;\n        ",
+  "query": "\n            SELECT\n                g.room_id,\n                g.id,\n                g.x_status as \"x_status: PlayerStatus\",\n                g.o_status as \"o_status: PlayerStatus\",\n                g.status as \"status: GameStatus\",\n                g.game_type as \"game_type: GameType\",\n                g.x,\n                g.o,\n                g.winner,\n                g.init_player as \"init_player: Player\",\n                jsonb_agg(\n                    jsonb_build_object(\n                        'row', gm.row,\n                        'col', gm.col,\n                        'player', gm.player\n                    ) ORDER BY gm.turn\n                ) AS moves\n            FROM\n                game g\n            LEFT JOIN\n                game_move gm\n                ON g.id = gm.game_id\n            where g.room_id IN (SELECT unnest($1::uuid[])) and g.status != 'ended'\n            and ((g.x is null and g.o is not null) or (g.x is not null and g.o is null))\n            GROUP BY g.id\n        ",
   "describe": {
     "columns": [
       {
@@ -15,13 +15,37 @@
       },
       {
         "ordinal": 2,
-        "name": "x_ready",
-        "type_info": "Bool"
+        "name": "x_status: PlayerStatus",
+        "type_info": {
+          "Custom": {
+            "name": "player_status",
+            "kind": {
+              "Enum": [
+                "confirmed",
+                "confirmed_then_left",
+                "left",
+                "ready"
+              ]
+            }
+          }
+        }
       },
       {
         "ordinal": 3,
-        "name": "o_ready",
-        "type_info": "Bool"
+        "name": "o_status: PlayerStatus",
+        "type_info": {
+          "Custom": {
+            "name": "player_status",
+            "kind": {
+              "Enum": [
+                "confirmed",
+                "confirmed_then_left",
+                "left",
+                "ready"
+              ]
+            }
+          }
+        }
       },
       {
         "ordinal": 4,
@@ -110,5 +134,5 @@
       null
     ]
   },
-  "hash": "4e1856499bac4aa1af2fbed6e4f4feaf6bdca348b27405009b29d3b3417b27de"
+  "hash": "6e1a7d9f58c7140447eb59e7b4fd9c299525845375c999dcf36e07c437ac7d01"
 }

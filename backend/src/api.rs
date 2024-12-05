@@ -1,5 +1,5 @@
 use crate::db::Db;
-use crate::models::{Game, GameEvent, GameStatus, GameType, Move, Player};
+use crate::models::{Game, GameEvent, GameStatus, GameType, Move, Player, PlayerStatus};
 use axum::extract::ws::{CloseFrame, Message, WebSocket};
 use axum::extract::{Path, State, WebSocketUpgrade};
 use axum::http::StatusCode;
@@ -108,15 +108,14 @@ async fn play(
             {
                 let rooms = state.rooms.lock().await;
                 let rooms: Vec<Uuid> = { rooms.keys().map(|x| x.to_owned()).collect() };
-                let r = state.db.get_available_quick_games(&rooms).await;
-                match r {
+                match state.db.get_available_quick_games(&rooms).await {
                     Ok(r) => room = Some(r),
                     _ => room = None,
                 }
             }
             match room {
                 Some(room) => {
-                    let (room_id, mut game, ..) = room.to_owned();
+                    let mut game = room.to_owned();
                     if game.x.is_none() {
                         game.x = Some(user_id)
                     } else if game.o.is_none() {
@@ -126,7 +125,7 @@ async fn play(
                         tracing::error!(?err);
                         StatusCode::INTERNAL_SERVER_ERROR
                     })?;
-                    (user_id, room_id)
+                    (user_id, game.room_id)
                 }
                 None => {
                     let room_id: Uuid = Uuid::new_v4();
@@ -187,9 +186,9 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
         }
         let mut game = game.unwrap();
         if game.x == Some(user_id) {
-            game.x_ready = true;
+            game.x_status = PlayerStatus::Confirmed;
         } else if game.o == Some(user_id) {
-            game.o_ready = true;
+            game.o_status = PlayerStatus::Confirmed;
         }
         if let Err(error) = state.db.update_game(&game).await {
             tracing::error!(?error, "Error updating game");
@@ -208,7 +207,10 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
             }
         }
 
-        if game.x_ready && game.o_ready && (game.x == Some(user_id) || game.o == Some(user_id)) {
+        if matches!(game.x_status, PlayerStatus::Confirmed)
+            && matches!(game.o_status, PlayerStatus::Confirmed)
+            && (game.x == Some(user_id) || game.o == Some(user_id))
+        {
             game.status = GameStatus::Playing;
             let rooms = state.rooms.lock().await;
             if let Some(room) = rooms.get(&room_id) {
@@ -327,10 +329,10 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
                         if let Ok(Some(win)) = game.check_winning_move(&mv.position) {
                             game.winner = Some(win);
                             game.status = GameStatus::Ready;
-                            game.x_ready = false;
-                            game.o_ready = match game.game_type {
-                                GameType::Bot => true,
-                                GameType::Normal | GameType::Private => false,
+                            game.x_status = PlayerStatus::Ready;
+                            game.o_status = match game.game_type {
+                                GameType::Bot => PlayerStatus::Confirmed,
+                                GameType::Normal | GameType::Private => PlayerStatus::Ready,
                             };
                             if let Err(error) = sender_state.db.update_game(&game).await {
                                 tracing::error!(?error, "Error update game winner");
@@ -360,7 +362,7 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
                             if let Ok(Some(win)) = game.check_winning_move(&pos) {
                                 game.winner = Some(win);
                                 game.status = GameStatus::Ready;
-                                game.x_ready = false;
+                                game.x_status = PlayerStatus::Ready;
                                 if let Err(error) = sender_state.db.update_game(&game).await {
                                     tracing::error!(?error, "Error update game winner");
                                 }
@@ -409,14 +411,16 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
                         }
                         GameType::Normal | GameType::Private => {
                             if game.x == Some(user_id) {
-                                game.x_ready = true
+                                game.x_status = PlayerStatus::Confirmed;
                             } else if game.o == Some(user_id) {
-                                game.o_ready = true
+                                game.o_status = PlayerStatus::Confirmed;
                             }
                             if let Err(error) = sender_state.db.update_game(&game).await {
                                 tracing::error!(?error, "Error update game");
                             }
-                            if game.x_ready && game.o_ready {
+                            if matches!(game.x_status, PlayerStatus::Confirmed)
+                                && matches!(game.o_status, PlayerStatus::Confirmed)
+                            {
                                 game.status = GameStatus::Ended;
                                 if let Err(error) = sender_state.db.update_game(&game).await {
                                     tracing::error!(?error, "Error update game");
@@ -453,21 +457,43 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
         let game = state.db.get_active_game_for_room(&room_id).await;
         if game.is_ok() {
             let mut game = game.unwrap();
-            if game.x == Some(user_id) {
-                game.x = None;
-            } else if game.o == Some(user_id) {
-                game.o = None;
-            }
-            #[allow(unused_assignments)]
-            let mut users = 0;
             {
                 let mut rooms = state.rooms.lock().await;
+
                 if let Some(room) = rooms.get_mut(&room_id) {
                     room.users.remove(&user_id);
-                    users = room.users.len();
+                    tracing::info!(?game.x, ?game.o, ?user_id);
+
+                    if game.x == Some(user_id) || game.o == Some(user_id) {
+                        if game.x == Some(user_id) {
+                            game.x_status = match game.x_status {
+                                PlayerStatus::Confirmed => PlayerStatus::ConfirmedThenLeft,
+                                _ => PlayerStatus::Left,
+                            }
+                        } else if game.o == Some(user_id) {
+                            game.o_status = match game.o_status {
+                                PlayerStatus::Confirmed => PlayerStatus::ConfirmedThenLeft,
+                                _ => PlayerStatus::Left,
+                            }
+                        }
+                        if let Err(error) = state.db.update_game(&game).await {
+                            tracing::error!(?error, "Error updating game status");
+                        }
+                        if let Err(error) = room.tx.send(GameEvent::PlayerLeft) {
+                            tracing::error!(?error, "Error sending player left");
+                        }
+                    }
                 }
             }
-            if users == 0 || game.x.is_none() && game.o.is_none() {
+            if matches!(
+                game.x_status,
+                PlayerStatus::Left | PlayerStatus::ConfirmedThenLeft
+            ) && (matches!(
+                game.o_status,
+                PlayerStatus::Left | PlayerStatus::ConfirmedThenLeft
+            ) || matches!(game.game_type, GameType::Bot))
+            {
+                tracing::info!("Game ended");
                 game.status = GameStatus::Ended;
                 if let Err(error) = state.db.update_game(&game).await {
                     tracing::error!(?error, "Error updating game status");

@@ -10,7 +10,7 @@
   import DefeatedSound from '$lib/assets/sound/defeat.mp3'
   import GameStartSound from '$lib/assets/sound/game-start.mp3'
   import Button from '$lib/components/ui/button/button.svelte'
-  import { fly } from 'svelte/transition'
+  import { fly, scale } from 'svelte/transition'
   import { _ } from 'svelte-i18n'
   import Chat from '$lib/components/Chat.svelte'
   import * as Drawer from '$lib/components/ui/drawer'
@@ -22,7 +22,13 @@
   let player = $state<Player | null>(null)
   let chatBody = $state<HTMLDivElement | null>(null)
 
-  let wsError = $state<boolean>(false)
+  let playAgain = $state(false)
+
+  let wsError = $state<{
+    type: 'error' | 'system'
+    title: string
+    description: string
+  } | null>(null)
 
   let xAudio = new Audio(PlayerXSound)
   let oAudio = new Audio(PlayerOSound)
@@ -32,6 +38,8 @@
 
   let messages = $state<Message[]>([])
   let unReadMessages = $state<number>(0)
+
+  let showTurn = $state(false)
 
   onDestroy(() => {
     socket?.close()
@@ -46,24 +54,34 @@
     socket.onopen = () => {
       socket!.send('Hello world')
     }
-    socket.onclose = (ev) => {
-      console.log('CLOSING WS')
-      wsError = true
+    socket.onclose = () => {
+      wsError = {
+        type: 'error',
+        title: $_('can-not-connect-to-room'),
+        description: ''
+      }
       // console.log('close', ev)
     }
     socket.onmessage = ({ data }) => {
       let msg: GameEvent = JSON.parse(data)
-      console.log(msg)
       switch (msg.event) {
         case 'Game':
           gameStartAudio.play()
+          wsError = null
           game = msg.game
+          playAgain = false
           player =
             msg.game.x === user.user
               ? 'x'
               : msg.game.o === user.user
                 ? 'o'
                 : null
+          if (game.status === 'playing') {
+            showTurn = true
+            setTimeout(() => {
+              showTurn = false
+            }, 1500)
+          }
           break
         case 'MoveEvent':
           if (game === null) break
@@ -114,7 +132,26 @@
         case 'Status':
           if (game === null) break
           game.status = msg.status
-          console.log(game)
+          if (msg.status === 'ended') {
+            wsError = {
+              type: 'system',
+              title: $_('game-has-ended'),
+              description: ''
+            }
+          } else if (msg.status === 'playing') {
+            showTurn = true
+            wsError = null
+            setTimeout(() => {
+              showTurn = false
+            }, 1500)
+          }
+          break
+        case 'PlayerLeft':
+          wsError = {
+            type: 'system',
+            title: $_('opponent-left'),
+            description: $_('wait-them-to-reconnect-or-leave')
+          }
           break
         case 'Message':
           messages.push(msg)
@@ -164,10 +201,11 @@
     <div class="relative grid h-fit w-fit place-items-center">
       {#if game !== null}
         <GameRender {game} {play} {player} {predicts} />
-        {#if game.winner && player !== null}
+
+        {#if game.winner && player !== null && !playAgain}
           <div class="absolute inset-0 flex justify-center bg-gray-900/60 p-24">
             <div
-              in:fly={{ y: -100 }}
+              transition:fly={{ y: -100 }}
               class="grid h-fit w-96 place-items-center gap-4 rounded bg-white p-8"
             >
               <div
@@ -183,9 +221,29 @@
                 variant="destructive"
                 on:click={() => {
                   socket!.send(JSON.stringify({ event: 'PlayAgain' }))
-                }}>Play Again</Button
+                  playAgain = true
+                }}>{$_('play-again')}</Button
               >
-              <a href="/" use:link>Exit</a>
+              <a href="/" use:link>{$_('leave')}</a>
+            </div>
+          </div>
+        {/if}
+
+        {#if showTurn && player}
+          <div class="absolute inset-0 flex justify-center bg-gray-900/90 p-24">
+            <div
+              transition:scale
+              class="grid h-fit w-96 place-items-center gap-4 rounded p-8"
+            >
+              <div
+                class="inline-block bg-gradient-to-r from-blue-600 via-green-500 to-indigo-400 bg-clip-text text-6xl font-bold text-transparent"
+              >
+                {#if player === game?.next_player}
+                  {$_('your-turn')}
+                {:else}
+                  {$_('opponents-turn')}
+                {/if}
+              </div>
             </div>
           </div>
         {/if}
@@ -222,19 +280,24 @@
   </div>
 </div>
 
-{#if wsError}
-  <div class="absolute inset-0 flex justify-center bg-gray-900/90 p-24">
+{#if wsError !== null}
+  <div class="absolute inset-0 grid place-items-center">
     <div
       in:fly={{ y: -100 }}
       class="grid h-fit w-96 place-items-center gap-4 rounded bg-white p-8"
     >
       <div class="">
         <div class="text-2xl font-bold text-red-400">
-          {$_('there-is-something-wrong')}
+          {wsError.title}
         </div>
-        <a href="/" use:link>
+        {#if wsError.description}
+          <div>
+            {wsError.description}
+          </div>
+        {/if}
+        <a href="/" use:link class="flex justify-center">
           <Button variant="link">
-            {$_('to-main-menu')}
+            {$_('leave')}
           </Button>
         </a>
       </div>

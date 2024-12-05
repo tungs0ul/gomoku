@@ -18,6 +18,16 @@ pub enum GameType {
     Normal,
 }
 
+#[derive(Debug, sqlx::Type, Serialize, Deserialize, Clone)]
+#[sqlx(type_name = "player_status", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum PlayerStatus {
+    Ready,
+    Confirmed,
+    ConfirmedThenLeft,
+    Left,
+}
+
 #[derive(sqlx::Type, Debug, Deserialize, Serialize, Clone)]
 #[sqlx(type_name = "game_status", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
@@ -36,8 +46,8 @@ pub struct Game {
     pub next_player: Player,
     pub moves: Vec<Move>,
     pub winner: Option<Vec<Move>>,
-    pub x_ready: bool,
-    pub o_ready: bool,
+    pub x_status: PlayerStatus,
+    pub o_status: PlayerStatus,
     pub game_type: GameType,
     pub room_id: Uuid,
     pub status: GameStatus,
@@ -53,8 +63,8 @@ impl Game {
             winner: None,
             next_player,
             moves: vec![],
-            x_ready: false,
-            o_ready: false,
+            x_status: PlayerStatus::Ready,
+            o_status: PlayerStatus::Ready,
             room_id,
             status: match game_type {
                 GameType::Bot => GameStatus::Playing,
@@ -1013,8 +1023,8 @@ pub struct GameDb {
     pub winner: serde_json::Value,
     pub init_player: Player,
     pub game_type: GameType,
-    pub x_ready: bool,
-    pub o_ready: bool,
+    pub x_status: PlayerStatus,
+    pub o_status: PlayerStatus,
     pub status: GameStatus,
 }
 
@@ -1055,8 +1065,8 @@ impl TryFrom<GameDb> for Game {
             winner,
             o: game.o,
             x: game.x,
-            x_ready: game.x_ready,
-            o_ready: game.o_ready,
+            x_status: game.x_status,
+            o_status: game.o_status,
             game_type: game.game_type,
             status: game.status,
         };
@@ -1093,6 +1103,7 @@ pub enum GameEvent {
     Status {
         status: GameStatus,
     },
+    PlayerLeft,
     PlayAgain,
     Ended,
 }

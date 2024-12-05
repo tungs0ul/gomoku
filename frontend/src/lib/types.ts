@@ -58,6 +58,7 @@ export type GameEvent =
     event: 'Message'
   } & Message)
   | { event: "Status", status: GameStatus }
+  | { event: "PlayerLeft" }
 
 export type Message = {
   msg: string
