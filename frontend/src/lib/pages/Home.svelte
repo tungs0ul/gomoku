@@ -67,8 +67,7 @@
         <Drawer.Root>
           <Drawer.Trigger>
             <Button class="w-full py-12 text-4xl" size="lg" variant="default"
-              >{$_('play')}</Button
-            >
+              >{$_('play')}</Button>
           </Drawer.Trigger>
           <Drawer.Content>
             <Drawer.Header>
@@ -80,8 +79,7 @@
             <Drawer.Footer>
               <button
                 class="grid grid-cols-2 items-center gap-4 rounded-md bg-blue-400 py-6"
-                onclick={() => createGame('bot')}
-              >
+                onclick={() => createGame('bot')}>
                 <div class="flex justify-end">
                   <Bot class="h-6 w-6" />
                 </div>
@@ -90,8 +88,7 @@
 
               <button
                 class="grid grid-cols-2 items-center gap-4 rounded-md bg-green-400 py-6"
-                onclick={() => createGame('normal')}
-              >
+                onclick={() => createGame('normal')}>
                 <div class="flex justify-end">
                   <User class="h-6 w-6" />
                 </div>

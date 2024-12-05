@@ -30,35 +30,35 @@ export type Game = {
 
 export type GameEvent =
   | {
-    event: 'Game'
-    game: Game
-  }
+      event: 'Game'
+      game: Game
+    }
   | {
-    event: 'MiniMax'
-    position: Position
-    score: number
-  }
+      event: 'MiniMax'
+      position: Position
+      score: number
+    }
   | {
-    event: 'MoveEvent'
-    mv: Move
-  }
+      event: 'MoveEvent'
+      mv: Move
+    }
   | {
-    event: 'InvalidMove'
-    player: Player
-  }
+      event: 'InvalidMove'
+      player: Player
+    }
   | {
-    event: 'Winner'
-    moves: Move[]
-    last_move: Move
-  }
+      event: 'Winner'
+      moves: Move[]
+      last_move: Move
+    }
   | {
-    event: 'PlayAgain'
-  }
+      event: 'PlayAgain'
+    }
   | ({
-    event: 'Message'
-  } & Message)
-  | { event: "Status", status: GameStatus }
-  | { event: "PlayerLeft" }
+      event: 'Message'
+    } & Message)
+  | { event: 'Status'; status: GameStatus }
+  | { event: 'PlayerLeft' }
 
 export type Message = {
   msg: string
