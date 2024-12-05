@@ -9,6 +9,34 @@ const WINNING_MOVE_COUNT: usize = 5;
 const MAX_SCORE: i32 = 500;
 const BOARD_SIZE: usize = 15;
 
+#[derive(Debug, sqlx::Type, Serialize, Deserialize, Clone)]
+#[sqlx(type_name = "game_type", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum GameType {
+    Private,
+    Bot,
+    Normal,
+}
+
+#[derive(Debug, sqlx::Type, Serialize, Deserialize, Clone)]
+#[sqlx(type_name = "player_status", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum PlayerStatus {
+    Ready,
+    Confirmed,
+    ConfirmedThenLeft,
+    Left,
+}
+
+#[derive(sqlx::Type, Debug, Deserialize, Serialize, Clone)]
+#[sqlx(type_name = "game_status", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum GameStatus {
+    Ready,
+    Playing,
+    Ended,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Game {
     pub id: Uuid,
@@ -18,18 +46,31 @@ pub struct Game {
     pub next_player: Player,
     pub moves: Vec<Move>,
     pub winner: Option<Vec<Move>>,
+    pub x_status: PlayerStatus,
+    pub o_status: PlayerStatus,
+    pub game_type: GameType,
+    pub room_id: Uuid,
+    pub status: GameStatus,
 }
 
 impl Game {
-    pub fn new(id: Uuid, next_player: Player) -> Self {
+    pub fn new(room_id: Uuid, next_player: Player, game_type: GameType) -> Self {
         Self {
-            id,
+            id: Uuid::new_v4(),
             board: [[None; BOARD_SIZE]; BOARD_SIZE],
             x: None,
             o: None,
             winner: None,
             next_player,
             moves: vec![],
+            x_status: PlayerStatus::Ready,
+            o_status: PlayerStatus::Ready,
+            room_id,
+            status: match game_type {
+                GameType::Bot => GameStatus::Playing,
+                GameType::Normal | GameType::Private => GameStatus::Ready,
+            },
+            game_type,
         }
     }
 
@@ -981,7 +1022,10 @@ pub struct GameDb {
     pub moves: serde_json::Value,
     pub winner: serde_json::Value,
     pub init_player: Player,
-    pub room_type: RoomType,
+    pub game_type: GameType,
+    pub x_status: PlayerStatus,
+    pub o_status: PlayerStatus,
+    pub status: GameStatus,
 }
 
 #[derive(Deserialize)]
@@ -1013,6 +1057,7 @@ impl TryFrom<GameDb> for Game {
         });
         let winner: Option<Vec<Move>> = serde_json::from_value(game.winner)?;
         let game = Game {
+            room_id: game.room_id,
             board,
             id: game.id,
             moves,
@@ -1020,6 +1065,10 @@ impl TryFrom<GameDb> for Game {
             winner,
             o: game.o,
             x: game.x,
+            x_status: game.x_status,
+            o_status: game.o_status,
+            game_type: game.game_type,
+            status: game.status,
         };
 
         Ok(game)
@@ -1029,24 +1078,32 @@ impl TryFrom<GameDb> for Game {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "event")]
 pub enum GameEvent {
-    Game { game: Box<Game> },
-    PredictBot { position: Position },
-    MoveEvent { mv: Move },
-    InvalidMove { player: Player },
-    Winner { moves: Vec<Move>, last_move: Move },
-    MiniMax { position: Position, score: i32 },
-    PlayerLeft { player: Player, game: Uuid },
-    PlayerJoined { player: Player, game: Uuid },
-    NextPlayer { player: Player },
-    Chat { msg: String, user: String, id: Uuid },
+    Game {
+        game: Box<Game>,
+    },
+    MoveEvent {
+        mv: Move,
+    },
+    InvalidMove {
+        player: Player,
+    },
+    Winner {
+        moves: Vec<Move>,
+        last_move: Move,
+    },
+    MiniMax {
+        position: Position,
+        score: i32,
+    },
+    Message {
+        msg: String,
+        user: Option<String>,
+        id: Uuid,
+    },
+    Status {
+        status: GameStatus,
+    },
+    PlayerLeft,
     PlayAgain,
-}
-
-#[derive(Debug, sqlx::Type, Serialize, Deserialize, Clone)]
-#[sqlx(type_name = "room_type", rename_all = "lowercase")]
-#[serde(rename_all = "lowercase")]
-pub enum RoomType {
-    Private,
-    Bot,
-    Normal,
+    Ended,
 }

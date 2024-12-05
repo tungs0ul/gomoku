@@ -1,0 +1,55 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update game set winner = $2, x = $3, o = $4, status = $5, x_status = $6, o_status = $7 where id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Jsonb",
+        "Uuid",
+        "Uuid",
+        {
+          "Custom": {
+            "name": "game_status",
+            "kind": {
+              "Enum": [
+                "playing",
+                "ended",
+                "ready"
+              ]
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "player_status",
+            "kind": {
+              "Enum": [
+                "confirmed",
+                "confirmed_then_left",
+                "left",
+                "ready"
+              ]
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "player_status",
+            "kind": {
+              "Enum": [
+                "confirmed",
+                "confirmed_then_left",
+                "left",
+                "ready"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7f4839d8916b923e162d2309a4b863a64d25b6ff1ae6d25b1a2ef313aa0b4711"
+}

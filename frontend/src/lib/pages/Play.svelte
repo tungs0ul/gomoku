@@ -1,6 +1,6 @@
 <script lang="ts">
   import { HOST, PORT, user } from '$lib/store.svelte'
-  import type { Game, GameEvent, Player } from '$lib/types'
+  import type { Game, GameEvent, Message, Player } from '$lib/types'
   import GameRender from '$lib/Game.svelte'
   import { link, location } from 'svelte-spa-router'
   import { onDestroy, onMount } from 'svelte'
@@ -10,7 +10,7 @@
   import DefeatedSound from '$lib/assets/sound/defeat.mp3'
   import GameStartSound from '$lib/assets/sound/game-start.mp3'
   import Button from '$lib/components/ui/button/button.svelte'
-  import { fly } from 'svelte/transition'
+  import { fly, scale } from 'svelte/transition'
   import { _ } from 'svelte-i18n'
   import Chat from '$lib/components/Chat.svelte'
   import * as Drawer from '$lib/components/ui/drawer'
@@ -22,14 +22,24 @@
   let player = $state<Player | null>(null)
   let chatBody = $state<HTMLDivElement | null>(null)
 
+  let playAgain = $state(false)
+
+  let wsError = $state<{
+    type: 'error' | 'system'
+    title: string
+    description: string
+  } | null>(null)
+
   let xAudio = new Audio(PlayerXSound)
   let oAudio = new Audio(PlayerOSound)
   let victoryAudio = new Audio(VictorySound)
   let defeatedAudio = new Audio(DefeatedSound)
   let gameStartAudio = new Audio(GameStartSound)
 
-  let messages = $state<{ msg: string; user: string; id: string }[]>([])
+  let messages = $state<Message[]>([])
   let unReadMessages = $state<number>(0)
+
+  let showTurn = $state(false)
 
   onDestroy(() => {
     socket?.close()
@@ -44,7 +54,12 @@
     socket.onopen = () => {
       socket!.send('Hello world')
     }
-    socket.onclose = (ev) => {
+    socket.onclose = () => {
+      wsError = {
+        type: 'error',
+        title: $_('can-not-connect-to-room'),
+        description: ''
+      }
       // console.log('close', ev)
     }
     socket.onmessage = ({ data }) => {
@@ -52,13 +67,21 @@
       switch (msg.event) {
         case 'Game':
           gameStartAudio.play()
+          wsError = null
           game = msg.game
+          playAgain = false
           player =
             msg.game.x === user.user
               ? 'x'
               : msg.game.o === user.user
                 ? 'o'
                 : null
+          if (game.status === 'playing') {
+            showTurn = true
+            setTimeout(() => {
+              showTurn = false
+            }, 1500)
+          }
           break
         case 'MoveEvent':
           if (game === null) break
@@ -85,6 +108,9 @@
           game.board[msg.last_move.position.row][msg.last_move.position.col] =
             msg.last_move.player
           game.moves.push(msg.last_move)
+          game.status = 'ready'
+          game.x_ready = false
+          game.o_ready = false
           predicts = []
           game.winner = msg.moves
           break
@@ -103,7 +129,31 @@
           predicts = [...predicts]
           break
 
-        case 'Chat':
+        case 'Status':
+          if (game === null) break
+          game.status = msg.status
+          if (msg.status === 'ended') {
+            wsError = {
+              type: 'system',
+              title: $_('game-has-ended'),
+              description: ''
+            }
+          } else if (msg.status === 'playing') {
+            showTurn = true
+            wsError = null
+            setTimeout(() => {
+              showTurn = false
+            }, 1500)
+          }
+          break
+        case 'PlayerLeft':
+          wsError = {
+            type: 'system',
+            title: $_('opponent-left'),
+            description: $_('wait-them-to-reconnect-or-leave')
+          }
+          break
+        case 'Message':
           messages.push(msg)
           if (msg.user !== user.user) unReadMessages += 1
           setTimeout(() => {
@@ -124,6 +174,7 @@
     if (player === null) return
     if (game.next_player !== player) return
     if (game.winner !== null) return
+    if (game.status !== 'playing') return
     xAudio.play()
     game.board[row][col] = 'x'
     game.moves.push({ position: { row, col }, player })
@@ -133,25 +184,33 @@
 
     // game = game
     socket!.send(
-      JSON.stringify({ event: 'PredictBot', position: { row, col } })
+      JSON.stringify({
+        event: 'MoveEvent',
+        mv: { position: { row, col }, player }
+      })
     )
   }
 </script>
 
 <div
-  class="sm:lex-row flex h-full max-h-screen w-full flex-col overflow-auto p-2 sm:p-4">
+  class="sm:lex-row flex h-full max-h-screen w-full flex-col overflow-auto p-2 sm:p-4"
+>
   <div
-    class="flex h-full w-full flex-col items-center gap-4 overflow-auto sm:flex-row">
+    class="flex h-full w-full flex-col items-center gap-4 overflow-auto sm:flex-row"
+  >
     <div class="relative grid h-fit w-fit place-items-center">
       {#if game !== null}
         <GameRender {game} {play} {player} {predicts} />
-        {#if game.winner && player !== null}
+
+        {#if game.winner && player !== null && !playAgain}
           <div class="absolute inset-0 flex justify-center bg-gray-900/60 p-24">
             <div
-              in:fly={{ y: -100 }}
-              class="grid h-fit w-96 place-items-center gap-4 rounded bg-white p-8">
+              transition:fly={{ y: -100 }}
+              class="grid h-fit w-96 place-items-center gap-4 rounded bg-white p-8"
+            >
               <div
-                class="inline-block bg-gradient-to-r from-blue-600 via-green-500 to-indigo-400 bg-clip-text text-6xl font-bold text-transparent">
+                class="inline-block bg-gradient-to-r from-blue-600 via-green-500 to-indigo-400 bg-clip-text text-6xl font-bold text-transparent"
+              >
                 {#if player === game.winner[0].player}
                   <div>{$_('won')}</div>
                 {:else}
@@ -162,8 +221,29 @@
                 variant="destructive"
                 on:click={() => {
                   socket!.send(JSON.stringify({ event: 'PlayAgain' }))
-                }}>Play Again</Button>
-              <a href="/" use:link>Exit</a>
+                  playAgain = true
+                }}>{$_('play-again')}</Button
+              >
+              <a href="/" use:link>{$_('leave')}</a>
+            </div>
+          </div>
+        {/if}
+
+        {#if showTurn && player}
+          <div class="absolute inset-0 flex justify-center bg-gray-900/90 p-24">
+            <div
+              transition:scale
+              class="grid h-fit w-96 place-items-center gap-4 rounded p-8"
+            >
+              <div
+                class="inline-block bg-gradient-to-r from-blue-600 via-green-500 to-indigo-400 bg-clip-text text-6xl font-bold text-transparent"
+              >
+                {#if player === game?.next_player}
+                  {$_('your-turn')}
+                {:else}
+                  {$_('opponents-turn')}
+                {/if}
+              </div>
             </div>
           </div>
         {/if}
@@ -176,7 +256,8 @@
             <MessageSquareMore />
             {#if unReadMessages > 0}
               <div
-                class="absolute right-0 top-0 h-4 w-4 rounded-full bg-red-400 text-xs">
+                class="absolute right-0 top-0 h-4 w-4 rounded-full bg-red-400 text-xs"
+              >
                 {unReadMessages}
               </div>
             {/if}
@@ -198,3 +279,28 @@
     </div>
   </div>
 </div>
+
+{#if wsError !== null}
+  <div class="absolute inset-0 grid place-items-center">
+    <div
+      in:fly={{ y: -100 }}
+      class="grid h-fit w-96 place-items-center gap-4 rounded bg-white p-8"
+    >
+      <div class="">
+        <div class="text-2xl font-bold text-red-400">
+          {wsError.title}
+        </div>
+        {#if wsError.description}
+          <div>
+            {wsError.description}
+          </div>
+        {/if}
+        <a href="/" use:link class="flex justify-center">
+          <Button variant="link">
+            {$_('leave')}
+          </Button>
+        </a>
+      </div>
+    </div>
+  </div>
+{/if}

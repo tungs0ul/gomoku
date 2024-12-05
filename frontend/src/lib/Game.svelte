@@ -87,25 +87,31 @@
 </script>
 
 <div
-  class="-z-9 shadow-xk absolute grid aspect-square animate-bounce place-items-center rounded-full border border-4 border-black border-indigo-500/100 bg-white bg-yellow-400 bg-gradient-to-r bg-gradient-to-r from-indigo-500 from-indigo-500 via-purple-500 via-purple-500 to-pink-500 to-pink-500 text-black text-black opacity-0">
-</div>
+  class="-z-9 shadow-xk absolute grid aspect-square animate-bounce place-items-center rounded-full border border-4 border-black border-indigo-500/100 bg-white bg-yellow-400 bg-gradient-to-r bg-gradient-to-r from-indigo-500 from-indigo-500 via-purple-500 via-purple-500 to-pink-500 to-pink-500 text-black text-black opacity-0"
+></div>
 
 <div class="grid h-full grow">
   {#each game.board as row, y (y)}
     <div
       class="flex w-full bg-[#B17457]"
-      class:cursor-progress={player !== game.next_player}
-      class:cursor-pointer={player === game.next_player}>
+      class:cursor-progress={player !== game.next_player ||
+        game.status !== 'playing'}
+      class:cursor-pointer={player === game.next_player &&
+        game.status === 'playing'}
+    >
       {#each row as col, x (x)}
         {#if col === null}
           <button
-            class:cursor-progress={player !== game.next_player}
-            class:cursor-pointer={player === game.next_player}
+            class:cursor-progress={player !== game.next_player ||
+              game.status !== 'playing'}
+            class:cursor-pointer={player === game.next_player &&
+              game.status === 'playing'}
             class={`aspect-square h-12 border p-0 text-xs ${findPredict(x, y).text} ${game.next_player === player ? 'hover:bg-[#F3C623]' : 'hover:bg-[#AB886D]'}`}
             onclick={() => {
               if (player === null) return
               play(y, x)
-            }}>
+            }}
+          >
             {findPredict(x, y).score}
           </button>
         {:else}

@@ -1,0 +1,138 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                g.room_id,\n                g.id,\n                g.x,\n                g.o,\n                g.status as \"status: GameStatus\",\n                g.x_status as \"x_status: PlayerStatus\",\n                g.o_status as \"o_status: PlayerStatus\",\n                g.winner,\n                g.game_type as \"game_type: GameType\",\n                g.init_player as \"init_player: Player\",\n                jsonb_agg(\n                    jsonb_build_object(\n                        'row', gm.row,\n                        'col', gm.col,\n                        'player', gm.player\n                    ) ORDER BY gm.turn\n                ) AS moves\n            FROM\n                game g\n            LEFT JOIN\n                game_move gm\n                ON g.id = gm.game_id\n            where g.room_id = $1 and g.status != 'ended'\n            GROUP BY\n                g.id;\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "room_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "x",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "o",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "status: GameStatus",
+        "type_info": {
+          "Custom": {
+            "name": "game_status",
+            "kind": {
+              "Enum": [
+                "playing",
+                "ended",
+                "ready"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "x_status: PlayerStatus",
+        "type_info": {
+          "Custom": {
+            "name": "player_status",
+            "kind": {
+              "Enum": [
+                "confirmed",
+                "confirmed_then_left",
+                "left",
+                "ready"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "o_status: PlayerStatus",
+        "type_info": {
+          "Custom": {
+            "name": "player_status",
+            "kind": {
+              "Enum": [
+                "confirmed",
+                "confirmed_then_left",
+                "left",
+                "ready"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "winner",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 8,
+        "name": "game_type: GameType",
+        "type_info": {
+          "Custom": {
+            "name": "game_type",
+            "kind": {
+              "Enum": [
+                "bot",
+                "normal",
+                "private"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "init_player: Player",
+        "type_info": {
+          "Custom": {
+            "name": "player",
+            "kind": {
+              "Enum": [
+                "x",
+                "o"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "moves",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "e66fb68fdfb2ab0287c0dc4507d450c75cc2e3e55ff7039111ccd2b02c2ff8a2"
+}

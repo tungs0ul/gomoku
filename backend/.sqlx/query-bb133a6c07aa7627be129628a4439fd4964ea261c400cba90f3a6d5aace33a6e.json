@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO game (id, room_id, x, o, init_player, game_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        {
+          "Custom": {
+            "name": "player",
+            "kind": {
+              "Enum": [
+                "x",
+                "o"
+              ]
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "game_type",
+            "kind": {
+              "Enum": [
+                "bot",
+                "normal",
+                "private"
+              ]
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "game_status",
+            "kind": {
+              "Enum": [
+                "playing",
+                "ended",
+                "ready"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "bb133a6c07aa7627be129628a4439fd4964ea261c400cba90f3a6d5aace33a6e"
+}

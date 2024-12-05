@@ -27,3 +27,6 @@ frontend:
 
 pretty:
     cd frontend && bun run format
+
+migrate:
+    cd backend && cargo sqlx migrate run
