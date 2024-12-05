@@ -9,18 +9,18 @@
   import { toast } from 'svelte-sonner'
 
   import * as Drawer from '$lib/components/ui/drawer'
-  import type { RoomType } from '$lib/types'
+  import type { GameType } from '$lib/types'
 
   let games = 345834985734
   let players = 1234567890
 
-  const createGame = async (roomType: RoomType) => {
+  const createGame = async (gameType: GameType) => {
     if (user.user === null) return
-    if (roomType) {
+    if (gameType) {
       try {
         const { data } = await client.post(api.play, {
           user_id: user.user,
-          room_type: roomType
+          game_type: gameType
         })
         push(data)
       } catch (e) {

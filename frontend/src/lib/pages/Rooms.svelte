@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { type Game, type RoomType } from '$lib/types'
-  import { api, client, user } from '$lib/store.svelte'
+  import { type Game, type GameType } from '$lib/types'
+  import { client, user, api } from '$lib/store.svelte'
   import { flip } from 'svelte/animate'
   import { fly } from 'svelte/transition'
   import { link } from 'svelte-spa-router'
@@ -14,7 +14,7 @@
     return data
   }
 
-  const rooms = createQuery<[string, Game, RoomType][]>({
+  const rooms = createQuery<Game[]>({
     queryKey: ['rooms'],
     queryFn: getRooms
   })
@@ -25,21 +25,22 @@
 {/if}
 {#if $rooms.isSuccess}
   <div class="flex h-full w-full flex-col items-center py-4">
-    {#each $rooms.data as [room, game, room_type] (room)}
+    {#each $rooms.data as game (game.room_id)}
       <a
         use:link
-        href={`/ws/rooms/${room}/users/${user.user}`}
+        href={`/ws/rooms/${game.room_id}/users/${user.user}`}
         animate:flip
         transition:fly
-        class=" flex gap-4 rounded border bg-[#F5F0CD] px-6 py-4">
+        class=" flex gap-4 rounded border bg-[#F5F0CD] px-6 py-4"
+      >
         <div>
-          {#if room_type == 'bot'}
+          {#if game.game_type == 'bot'}
             <Bot />
-          {:else if room_type == 'normal'}
+          {:else if game.game_type == 'normal'}
             <Zap />
           {/if}
         </div>
-        {room}
+        {game.room_id}
       </a>
     {/each}
   </div>

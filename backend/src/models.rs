@@ -9,6 +9,24 @@ const WINNING_MOVE_COUNT: usize = 5;
 const MAX_SCORE: i32 = 500;
 const BOARD_SIZE: usize = 15;
 
+#[derive(Debug, sqlx::Type, Serialize, Deserialize, Clone)]
+#[sqlx(type_name = "game_type", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum GameType {
+    Private,
+    Bot,
+    Normal,
+}
+
+#[derive(sqlx::Type, Debug, Deserialize, Serialize, Clone)]
+#[sqlx(type_name = "game_status", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum GameStatus {
+    Ready,
+    Playing,
+    Ended,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Game {
     pub id: Uuid,
@@ -18,18 +36,31 @@ pub struct Game {
     pub next_player: Player,
     pub moves: Vec<Move>,
     pub winner: Option<Vec<Move>>,
+    pub x_ready: bool,
+    pub o_ready: bool,
+    pub game_type: GameType,
+    pub room_id: Uuid,
+    pub status: GameStatus,
 }
 
 impl Game {
-    pub fn new(id: Uuid, next_player: Player) -> Self {
+    pub fn new(room_id: Uuid, next_player: Player, game_type: GameType) -> Self {
         Self {
-            id,
+            id: Uuid::new_v4(),
             board: [[None; BOARD_SIZE]; BOARD_SIZE],
             x: None,
             o: None,
             winner: None,
             next_player,
             moves: vec![],
+            x_ready: false,
+            o_ready: false,
+            room_id,
+            status: match game_type {
+                GameType::Bot => GameStatus::Playing,
+                GameType::Normal | GameType::Private => GameStatus::Ready,
+            },
+            game_type,
         }
     }
 
@@ -981,7 +1012,10 @@ pub struct GameDb {
     pub moves: serde_json::Value,
     pub winner: serde_json::Value,
     pub init_player: Player,
-    pub room_type: RoomType,
+    pub game_type: GameType,
+    pub x_ready: bool,
+    pub o_ready: bool,
+    pub status: GameStatus,
 }
 
 #[derive(Deserialize)]
@@ -1013,6 +1047,7 @@ impl TryFrom<GameDb> for Game {
         });
         let winner: Option<Vec<Move>> = serde_json::from_value(game.winner)?;
         let game = Game {
+            room_id: game.room_id,
             board,
             id: game.id,
             moves,
@@ -1020,6 +1055,10 @@ impl TryFrom<GameDb> for Game {
             winner,
             o: game.o,
             x: game.x,
+            x_ready: game.x_ready,
+            o_ready: game.o_ready,
+            game_type: game.game_type,
+            status: game.status,
         };
 
         Ok(game)
@@ -1051,14 +1090,9 @@ pub enum GameEvent {
         user: Option<String>,
         id: Uuid,
     },
+    Status {
+        status: GameStatus,
+    },
     PlayAgain,
-}
-
-#[derive(Debug, sqlx::Type, Serialize, Deserialize, Clone)]
-#[sqlx(type_name = "room_type", rename_all = "lowercase")]
-#[serde(rename_all = "lowercase")]
-pub enum RoomType {
-    Private,
-    Bot,
-    Normal,
+    Ended,
 }

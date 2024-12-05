@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                g.room_id,\n                g.id,\n                r.room_type as \"room_type: RoomType\",\n                g.x,\n                g.o,\n                g.winner,\n                g.init_player as \"init_player: Player\",\n                jsonb_agg(\n                    jsonb_build_object(\n                        'row', gm.row,\n                        'col', gm.col,\n                        'player', gm.player\n                    ) ORDER BY gm.turn\n                ) AS moves\n            FROM\n                game g\n            join room r\n                on r.id = g.room_id\n            LEFT JOIN\n                game_move gm\n                ON g.id = gm.game_id\n            where g.room_id IN (SELECT unnest($1::uuid[])) and g.status != 'ended'\n            and r.room_type IN (select unnest($2::room_type[]))\n            GROUP BY\n                g.id, r.room_type;\n        ",
+  "query": "\n            SELECT\n                g.room_id,\n                g.id,\n                g.game_type as \"game_type: GameType\",\n                g.x,\n                g.x_ready,\n                g.o_ready,\n                g.o,\n                g.winner,\n                g.init_player as \"init_player: Player\",\n                jsonb_agg(\n                    jsonb_build_object(\n                        'row', gm.row,\n                        'col', gm.col,\n                        'player', gm.player\n                    ) ORDER BY gm.turn\n                ) AS moves\n            FROM\n                game g\n            LEFT JOIN\n                game_move gm\n                ON g.id = gm.game_id\n            where g.room_id IN (SELECT unnest($1::uuid[])) and g.status != 'ended'\n            and g.game_type IN (select unnest($2::game_type[]))\n            GROUP BY\n                g.id;\n        ",
   "describe": {
     "columns": [
       {
@@ -15,14 +15,14 @@
       },
       {
         "ordinal": 2,
-        "name": "room_type: RoomType",
+        "name": "game_type: GameType",
         "type_info": {
           "Custom": {
-            "name": "room_type",
+            "name": "game_type",
             "kind": {
               "Enum": [
-                "normal",
                 "bot",
+                "normal",
                 "private"
               ]
             }
@@ -36,16 +36,26 @@
       },
       {
         "ordinal": 4,
+        "name": "x_ready",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 5,
+        "name": "o_ready",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 6,
         "name": "o",
         "type_info": "Uuid"
       },
       {
-        "ordinal": 5,
+        "ordinal": 7,
         "name": "winner",
         "type_info": "Jsonb"
       },
       {
-        "ordinal": 6,
+        "ordinal": 8,
         "name": "init_player: Player",
         "type_info": {
           "Custom": {
@@ -60,7 +70,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 9,
         "name": "moves",
         "type_info": "Jsonb"
       }
@@ -70,15 +80,15 @@
         "UuidArray",
         {
           "Custom": {
-            "name": "room_type[]",
+            "name": "game_type[]",
             "kind": {
               "Array": {
                 "Custom": {
-                  "name": "room_type",
+                  "name": "game_type",
                   "kind": {
                     "Enum": [
-                      "normal",
                       "bot",
+                      "normal",
                       "private"
                     ]
                   }
@@ -94,11 +104,13 @@
       false,
       false,
       true,
+      false,
+      false,
       true,
       true,
       false,
       null
     ]
   },
-  "hash": "b708b6c576e2fcf323fe46587d4a6d7505689f9e56e5c3cd7d25edaa689acae2"
+  "hash": "0d1da55db8df0ace0cb32cd23af11779104ccedea4fb6626b95e5f418c748fc7"
 }

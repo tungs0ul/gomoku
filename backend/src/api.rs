@@ -1,5 +1,5 @@
-use crate::db::{Db, GameStatus};
-use crate::models::{Game, GameEvent, Move, Player, RoomType};
+use crate::db::Db;
+use crate::models::{Game, GameEvent, GameStatus, GameType, Move, Player};
 use axum::extract::ws::{CloseFrame, Message, WebSocket};
 use axum::extract::{Path, State, WebSocketUpgrade};
 use axum::http::StatusCode;
@@ -25,15 +25,13 @@ pub struct AppState {
 struct RoomState {
     users: HashSet<Uuid>,
     tx: broadcast::Sender<GameEvent>,
-    room_type: RoomType,
 }
 
 impl RoomState {
-    fn new(room_type: RoomType) -> Self {
+    fn new() -> Self {
         Self {
             users: HashSet::new(),
             tx: broadcast::channel(32).0,
-            room_type,
         }
     }
 }
@@ -63,14 +61,12 @@ async fn random_user() -> String {
     Uuid::new_v4().to_string()
 }
 
-async fn get_rooms(
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<Vec<(Uuid, Game, RoomType)>>, StatusCode> {
+async fn get_rooms(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Game>>, StatusCode> {
     let rooms = state.rooms.lock().await;
     let rooms: Vec<Uuid> = { rooms.keys().map(|x| x.to_owned()).collect() };
     let rooms = state
         .db
-        .get_active_game_for_rooms(&rooms, &[RoomType::Bot, RoomType::Normal])
+        .get_active_game_for_rooms(&rooms, &[GameType::Bot, GameType::Normal])
         .await
         .map_err(|err| {
             tracing::error!(?err);
@@ -87,45 +83,32 @@ async fn health_check(State(_state): State<Arc<AppState>>) -> StatusCode {
 #[derive(Debug, Deserialize)]
 struct GamePayload {
     user_id: Uuid,
-    room_type: RoomType,
+    game_type: GameType,
 }
 
 async fn play(
     State(state): State<Arc<AppState>>,
-    Json(GamePayload { room_type, user_id }): Json<GamePayload>,
+    Json(GamePayload { game_type, user_id }): Json<GamePayload>,
 ) -> Result<String, StatusCode> {
-    let (user_id, room_id) = match room_type {
-        RoomType::Bot => {
+    let (user_id, room_id) = match game_type {
+        GameType::Bot => {
             let room_id = Uuid::new_v4();
-            let game_id = Uuid::new_v4();
-            let mut game = Game::new(game_id, Player::X);
+            let mut game = Game::new(room_id, Player::X, GameType::Bot);
             game.x = Some(user_id);
             game.o = Some(Uuid::nil());
-
-            state
-                .db
-                .create_room(&room_id, &room_type, &game)
-                .await
-                .map_err(|error| {
-                    tracing::error!(?error);
-                    StatusCode::INTERNAL_SERVER_ERROR
-                })?;
+            state.db.new_game(&game).await.map_err(|error| {
+                tracing::error!(?error);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
             (user_id, room_id)
         }
-        RoomType::Normal => {
+        GameType::Normal => {
             #[allow(unused_assignments)]
             let mut room = None;
             {
                 let rooms = state.rooms.lock().await;
                 let rooms: Vec<Uuid> = { rooms.keys().map(|x| x.to_owned()).collect() };
-                let r = state
-                    .db
-                    .get_available_quick_games(&rooms)
-                    .await
-                    .map_err(|err| {
-                        tracing::error!(?err);
-                        StatusCode::INTERNAL_SERVER_ERROR
-                    });
+                let r = state.db.get_available_quick_games(&rooms).await;
                 match r {
                     Ok(r) => room = Some(r),
                     _ => room = None,
@@ -143,32 +126,16 @@ async fn play(
                         tracing::error!(?err);
                         StatusCode::INTERNAL_SERVER_ERROR
                     })?;
-                    let rooms = state.rooms.lock().await;
-                    let tx = &rooms
-                        .get(&room_id)
-                        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?
-                        .tx;
-                    if let Err(error) = tx.send(GameEvent::Message {
-                        msg: format!("{user_id} joined game"),
-                        user: None,
-                        id: Uuid::new_v4(),
-                    }) {
-                        tracing::error!(?error);
-                    }
                     (user_id, room_id)
                 }
                 None => {
                     let room_id: Uuid = Uuid::new_v4();
-                    let mut game = Game::new(Uuid::new_v4(), Player::X);
+                    let mut game = Game::new(room_id, Player::X, GameType::Normal);
                     game.x = Some(user_id);
-                    state
-                        .db
-                        .create_room(&room_id, &RoomType::Normal, &game)
-                        .await
-                        .map_err(|err| {
-                            tracing::error!(?err);
-                            StatusCode::INTERNAL_SERVER_ERROR
-                        })?;
+                    state.db.new_game(&game).await.map_err(|err| {
+                        tracing::error!(?err);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })?;
                     (user_id, room_id)
                 }
             }
@@ -218,44 +185,66 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
                 .await;
             return;
         }
-        let game = game.unwrap();
-        let _ = stream
+        let mut game = game.unwrap();
+        if game.x == Some(user_id) {
+            game.x_ready = true;
+        } else if game.o == Some(user_id) {
+            game.o_ready = true;
+        }
+        if let Err(error) = state.db.update_game(&game).await {
+            tracing::error!(?error, "Error updating game");
+        }
+
+        {
+            let rooms = state.rooms.lock().await;
+            if let Some(room) = rooms.get(&room_id) {
+                if let Err(error) = room.tx.send(GameEvent::Message {
+                    user: None,
+                    id: Uuid::new_v4(),
+                    msg: format!("{user_id} has joined room"),
+                }) {
+                    tracing::error!(?error, "Error sending game status");
+                }
+            }
+        }
+
+        if game.x_ready && game.o_ready && (game.x == Some(user_id) || game.o == Some(user_id)) {
+            game.status = GameStatus::Playing;
+            let rooms = state.rooms.lock().await;
+            if let Some(room) = rooms.get(&room_id) {
+                if let Err(error) = room.tx.send(GameEvent::Status {
+                    status: GameStatus::Playing,
+                }) {
+                    tracing::error!(?error, "Error sending game status");
+                }
+            }
+        }
+
+        if let Err(error) = stream
             .send(Message::Text(
                 serde_json::to_string(&GameEvent::Game {
                     game: Box::new(game),
                 })
                 .unwrap(),
             ))
-            .await;
+            .await
+        {
+            tracing::error!(?error, "Error sending game");
+        }
     }
 
     #[allow(unused_assignments)]
-    let mut game_type = RoomType::Normal;
     #[allow(unused)]
     let mut tx = None;
     {
         let mut rooms = state.rooms.lock().await;
         let room = rooms.get_mut(&room_id);
         if room.is_none() {
-            let room_type = state.db.get_room_type(&room_id).await;
-            if room_type.is_err() {
-                tracing::error!("Room not found");
-                let _ = stream
-                    .send(Message::Close(Some(CloseFrame {
-                        code: 0,
-                        reason: "Room not found".into(),
-                    })))
-                    .await;
-                return;
-            }
-            let room_type = room_type.unwrap();
-            game_type = room_type.clone();
-            let room = RoomState::new(room_type);
+            let room = RoomState::new();
             tx = Some(room.tx.clone());
             rooms.insert(room_id, room);
         } else {
             let room = room.unwrap();
-            game_type = room.room_type.clone();
             if room.users.contains(&user_id) {
                 let _ = stream
                     .send(Message::Close(Some(CloseFrame {
@@ -307,8 +296,8 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
             }
             let msg = msg.unwrap();
             let game = sender_state.db.get_active_game_for_room(&room_id).await;
-            if game.is_err() {
-                tracing::error!("Invalid game");
+            if let Err(error) = game {
+                tracing::error!(?error, "Invalid game");
                 continue;
             }
             let mut game = game.unwrap();
@@ -321,7 +310,6 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
                     });
                 }
                 GameEvent::MoveEvent { mv } => {
-                    tracing::info!(?mv, "MOVE");
                     if mv.player == Player::O && Some(user_id) != game.o {
                         continue;
                     }
@@ -329,12 +317,21 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
                         continue;
                     }
                     if game.play(&mv).is_ok() {
-                        let _ = sender_state
+                        if let Err(error) = sender_state
                             .db
                             .insert_move(&game.id, &mv, game.moves.len())
-                            .await;
+                            .await
+                        {
+                            tracing::error!(?error, "Error inserting move");
+                        }
                         if let Ok(Some(win)) = game.check_winning_move(&mv.position) {
                             game.winner = Some(win);
+                            game.status = GameStatus::Ready;
+                            game.x_ready = false;
+                            game.o_ready = match game.game_type {
+                                GameType::Bot => true,
+                                GameType::Normal | GameType::Private => false,
+                            };
                             if let Err(error) = sender_state.db.update_game(&game).await {
                                 tracing::error!(?error, "Error update game winner");
                             }
@@ -344,8 +341,10 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
                             });
                             continue;
                         }
-                        let _ = sender_tx.send(GameEvent::MoveEvent { mv });
-                        if !matches!(game_type, RoomType::Bot) {
+                        if let Err(error) = sender_tx.send(GameEvent::MoveEvent { mv }) {
+                            tracing::error!(?error, "Error sending move event");
+                        }
+                        if !matches!(game.game_type, GameType::Bot) {
                             continue;
                         }
                         let predict = game.find_bot_move(2);
@@ -360,6 +359,8 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
                                 .await;
                             if let Ok(Some(win)) = game.check_winning_move(&pos) {
                                 game.winner = Some(win);
+                                game.status = GameStatus::Ready;
+                                game.x_ready = false;
                                 if let Err(error) = sender_state.db.update_game(&game).await {
                                     tracing::error!(?error, "Error update game winner");
                                 }
@@ -376,24 +377,18 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
                     if game.o != Some(user_id) && game.x != Some(user_id) {
                         continue;
                     }
-                    match game_type {
-                        RoomType::Bot => {
+                    match game.game_type {
+                        GameType::Bot => {
                             if game.x != Some(user_id) {
                                 continue;
                             }
-                            let _ = sender_state
-                                .db
-                                .update_game_status(&game.id, &GameStatus::Ended)
-                                .await;
+                            game.status = GameStatus::Ended;
+                            let _ = sender_state.db.update_game(&game).await;
                             let next_player = game.next_player;
-                            let mut game = Game::new(Uuid::new_v4(), next_player);
+                            let mut game = Game::new(room_id, next_player, GameType::Bot);
                             game.x = Some(user_id);
                             game.o = Some(Uuid::nil());
-                            if let Err(error) = sender_state
-                                .db
-                                .new_game(&game, &room_id, &game.next_player)
-                                .await
-                            {
+                            if let Err(error) = sender_state.db.new_game(&game).await {
                                 tracing::error!(?error, "Error saving game");
                             }
                             if game.next_player == Player::O {
@@ -412,9 +407,35 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
                                 game: Box::new(game),
                             });
                         }
-                        RoomType::Normal => {}
-                        _ => {
-                            todo!("Feature in progress")
+                        GameType::Normal | GameType::Private => {
+                            if game.x == Some(user_id) {
+                                game.x_ready = true
+                            } else if game.o == Some(user_id) {
+                                game.o_ready = true
+                            }
+                            if let Err(error) = sender_state.db.update_game(&game).await {
+                                tracing::error!(?error, "Error update game");
+                            }
+                            if game.x_ready && game.o_ready {
+                                game.status = GameStatus::Ended;
+                                if let Err(error) = sender_state.db.update_game(&game).await {
+                                    tracing::error!(?error, "Error update game");
+                                }
+                                let x_player = game.x;
+                                let o_player = game.o;
+                                let mut game = Game::new(room_id, game.next_player, game.game_type);
+                                game.x = x_player;
+                                game.o = o_player;
+                                game.status = GameStatus::Playing;
+                                if let Err(error) = sender_state.db.update_game(&game).await {
+                                    tracing::error!(?error, "Error creating new game");
+                                }
+                                if let Err(error) = sender_tx.send(GameEvent::Game {
+                                    game: Box::new(game),
+                                }) {
+                                    tracing::error!(?error, "Error sending new game");
+                                }
+                            }
                         }
                     }
                 }
@@ -428,22 +449,40 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
         _ = &mut recv_task => send_task.abort(),
     };
 
-    tracing::info!("Closing websocket");
     {
-        let mut rooms = state.rooms.lock().await;
-        let room = rooms.get_mut(&room_id).unwrap();
-        // let game = state.db.get_active_game(&room_id).await;
-        // if let Ok(game) = game {
-        //     let game = Game::try_from(game);
-        //     if let Ok(game) = game {
-        //         if game.x == Some(user_id) || game.o == Some(user_id) {}
-        //     }
-        // }
-        room.users.remove(&user_id);
-        tracing::info!("users: {:?}", room.users);
-
-        if room.users.is_empty() {
-            rooms.remove(&room_id);
+        let game = state.db.get_active_game_for_room(&room_id).await;
+        if game.is_ok() {
+            let mut game = game.unwrap();
+            if game.x == Some(user_id) {
+                game.x = None;
+            } else if game.o == Some(user_id) {
+                game.o = None;
+            }
+            #[allow(unused_assignments)]
+            let mut users = 0;
+            {
+                let mut rooms = state.rooms.lock().await;
+                if let Some(room) = rooms.get_mut(&room_id) {
+                    room.users.remove(&user_id);
+                    users = room.users.len();
+                }
+            }
+            if users == 0 || game.x.is_none() && game.o.is_none() {
+                game.status = GameStatus::Ended;
+                if let Err(error) = state.db.update_game(&game).await {
+                    tracing::error!(?error, "Error updating game status");
+                }
+                {
+                    let mut rooms = state.rooms.lock().await;
+                    if let Some(room) = rooms.remove(&room_id) {
+                        if let Err(error) = room.tx.send(GameEvent::Status {
+                            status: GameStatus::Ended,
+                        }) {
+                            tracing::error!(?error, "Error sending ended");
+                        }
+                    }
+                }
+            }
         }
     }
 }

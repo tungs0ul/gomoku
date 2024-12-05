@@ -47,6 +47,7 @@
       socket!.send('Hello world')
     }
     socket.onclose = (ev) => {
+      console.log('CLOSING WS')
       wsError = true
       // console.log('close', ev)
     }
@@ -89,6 +90,9 @@
           game.board[msg.last_move.position.row][msg.last_move.position.col] =
             msg.last_move.player
           game.moves.push(msg.last_move)
+          game.status = 'ready'
+          game.x_ready = false
+          game.o_ready = false
           predicts = []
           game.winner = msg.moves
           break
@@ -107,6 +111,11 @@
           predicts = [...predicts]
           break
 
+        case 'Status':
+          if (game === null) break
+          game.status = msg.status
+          console.log(game)
+          break
         case 'Message':
           messages.push(msg)
           if (msg.user !== user.user) unReadMessages += 1
@@ -128,6 +137,7 @@
     if (player === null) return
     if (game.next_player !== player) return
     if (game.winner !== null) return
+    if (game.status !== 'playing') return
     xAudio.play()
     game.board[row][col] = 'x'
     game.moves.push({ position: { row, col }, player })
@@ -146,9 +156,11 @@
 </script>
 
 <div
-  class="sm:lex-row flex h-full max-h-screen w-full flex-col overflow-auto p-2 sm:p-4">
+  class="sm:lex-row flex h-full max-h-screen w-full flex-col overflow-auto p-2 sm:p-4"
+>
   <div
-    class="flex h-full w-full flex-col items-center gap-4 overflow-auto sm:flex-row">
+    class="flex h-full w-full flex-col items-center gap-4 overflow-auto sm:flex-row"
+  >
     <div class="relative grid h-fit w-fit place-items-center">
       {#if game !== null}
         <GameRender {game} {play} {player} {predicts} />
@@ -156,9 +168,11 @@
           <div class="absolute inset-0 flex justify-center bg-gray-900/60 p-24">
             <div
               in:fly={{ y: -100 }}
-              class="grid h-fit w-96 place-items-center gap-4 rounded bg-white p-8">
+              class="grid h-fit w-96 place-items-center gap-4 rounded bg-white p-8"
+            >
               <div
-                class="inline-block bg-gradient-to-r from-blue-600 via-green-500 to-indigo-400 bg-clip-text text-6xl font-bold text-transparent">
+                class="inline-block bg-gradient-to-r from-blue-600 via-green-500 to-indigo-400 bg-clip-text text-6xl font-bold text-transparent"
+              >
                 {#if player === game.winner[0].player}
                   <div>{$_('won')}</div>
                 {:else}
@@ -169,7 +183,8 @@
                 variant="destructive"
                 on:click={() => {
                   socket!.send(JSON.stringify({ event: 'PlayAgain' }))
-                }}>Play Again</Button>
+                }}>Play Again</Button
+              >
               <a href="/" use:link>Exit</a>
             </div>
           </div>
@@ -183,7 +198,8 @@
             <MessageSquareMore />
             {#if unReadMessages > 0}
               <div
-                class="absolute right-0 top-0 h-4 w-4 rounded-full bg-red-400 text-xs">
+                class="absolute right-0 top-0 h-4 w-4 rounded-full bg-red-400 text-xs"
+              >
                 {unReadMessages}
               </div>
             {/if}
@@ -210,7 +226,8 @@
   <div class="absolute inset-0 flex justify-center bg-gray-900/90 p-24">
     <div
       in:fly={{ y: -100 }}
-      class="grid h-fit w-96 place-items-center gap-4 rounded bg-white p-8">
+      class="grid h-fit w-96 place-items-center gap-4 rounded bg-white p-8"
+    >
       <div class="">
         <div class="text-2xl font-bold text-red-400">
           {$_('there-is-something-wrong')}
