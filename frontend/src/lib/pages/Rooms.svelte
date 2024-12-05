@@ -8,7 +8,7 @@
   import Zap from 'lucide-svelte/icons/zap'
   import { createQuery } from '@tanstack/svelte-query'
   import { _ } from 'svelte-i18n'
-
+  import { Button } from '$lib/components/ui/button'
   const getRooms = async () => {
     const { data } = await client.get(api.get_rooms)
     return data
@@ -24,6 +24,21 @@
   <div>{$_('error-getting-rooms')}</div>
 {/if}
 {#if $rooms.isSuccess}
+  {#if $rooms.data.length === 0}
+    <div class="grid h-full w-full place-items-center">
+      <div class="flex flex-col items-center gap-4">
+        <div class="text-4xl font-bold text-red-400">
+          {$_('there-is-no-room-atm')}
+        </div>
+
+        <a use:link href="/">
+          <Button variant="link" size="lg" class="text-xl text-white">
+            {$_('back-to-main')}
+          </Button>
+        </a>
+      </div>
+    </div>
+  {/if}
   <div class="flex h-full w-full flex-col items-center py-4">
     {#each $rooms.data as game (game.room_id)}
       <a
@@ -31,8 +46,7 @@
         href={`/ws/rooms/${game.room_id}/users/${user.user}`}
         animate:flip
         transition:fly
-        class=" flex gap-4 rounded border bg-[#F5F0CD] px-6 py-4"
-      >
+        class=" flex gap-4 rounded border bg-[#F5F0CD] px-6 py-4">
         <div>
           {#if game.game_type == 'bot'}
             <Bot />

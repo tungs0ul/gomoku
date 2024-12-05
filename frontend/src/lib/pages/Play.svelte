@@ -193,11 +193,9 @@
 </script>
 
 <div
-  class="sm:lex-row flex h-full max-h-screen w-full flex-col overflow-auto p-2 sm:p-4"
->
+  class="sm:lex-row flex h-full max-h-screen w-full flex-col overflow-auto p-2 sm:p-4">
   <div
-    class="flex h-full w-full flex-col items-center gap-4 overflow-auto sm:flex-row"
-  >
+    class="flex h-full w-full flex-col items-center gap-4 overflow-auto sm:flex-row">
     <div class="relative grid h-fit w-fit place-items-center">
       {#if game !== null}
         <GameRender {game} {play} {player} {predicts} />
@@ -206,11 +204,9 @@
           <div class="absolute inset-0 flex justify-center bg-gray-900/60 p-24">
             <div
               transition:fly={{ y: -100 }}
-              class="grid h-fit w-96 place-items-center gap-4 rounded bg-white p-8"
-            >
+              class="grid h-fit w-96 place-items-center gap-4 rounded bg-white p-8">
               <div
-                class="inline-block bg-gradient-to-r from-blue-600 via-green-500 to-indigo-400 bg-clip-text text-6xl font-bold text-transparent"
-              >
+                class="inline-block bg-gradient-to-r from-blue-600 via-green-500 to-indigo-400 bg-clip-text text-6xl font-bold text-transparent">
                 {#if player === game.winner[0].player}
                   <div>{$_('won')}</div>
                 {:else}
@@ -222,9 +218,8 @@
                 on:click={() => {
                   socket!.send(JSON.stringify({ event: 'PlayAgain' }))
                   playAgain = true
-                }}>{$_('play-again')}</Button
-              >
-              <a href="/" use:link>{$_('leave')}</a>
+                }}>{$_('play-again')}</Button>
+              <a href="/" use:link class="text-blue-400">{$_('leave')}</a>
             </div>
           </div>
         {/if}
@@ -233,11 +228,9 @@
           <div class="absolute inset-0 flex justify-center bg-gray-900/90 p-24">
             <div
               transition:scale
-              class="grid h-fit w-96 place-items-center gap-4 rounded p-8"
-            >
+              class="grid h-fit min-w-96 place-items-center gap-4 rounded p-8">
               <div
-                class="inline-block bg-gradient-to-r from-blue-600 via-green-500 to-indigo-400 bg-clip-text text-6xl font-bold text-transparent"
-              >
+                class="inline-block bg-gradient-to-r from-blue-600 via-green-500 to-indigo-400 bg-clip-text text-6xl font-bold text-transparent">
                 {#if player === game?.next_player}
                   {$_('your-turn')}
                 {:else}
@@ -256,8 +249,7 @@
             <MessageSquareMore />
             {#if unReadMessages > 0}
               <div
-                class="absolute right-0 top-0 h-4 w-4 rounded-full bg-red-400 text-xs"
-              >
+                class="absolute right-0 top-0 h-4 w-4 rounded-full bg-red-400 text-xs">
                 {unReadMessages}
               </div>
             {/if}
@@ -284,8 +276,7 @@
   <div class="absolute inset-0 grid place-items-center">
     <div
       in:fly={{ y: -100 }}
-      class="grid h-fit w-96 place-items-center gap-4 rounded bg-white p-8"
-    >
+      class="grid h-fit w-96 place-items-center gap-4 rounded bg-white p-8">
       <div class="">
         <div class="text-2xl font-bold text-red-400">
           {wsError.title}
@@ -296,7 +287,7 @@
           </div>
         {/if}
         <a href="/" use:link class="flex justify-center">
-          <Button variant="link">
+          <Button variant="link" class="text-blue-400">
             {$_('leave')}
           </Button>
         </a>

@@ -17,6 +17,7 @@
     "autoprefixer": "^10.4.20",
     "bits-ui": "^0.21.16",
     "clsx": "^2.1.1",
+    "lucide-svelte": "^0.453.0",
     "mode-watcher": "^0.4.1",
     "prettier": "^3.3.3",
     "prettier-plugin-svelte": "^3.2.7",
@@ -35,7 +36,6 @@
   "dependencies": {
     "@tanstack/svelte-query": "^5.62.2",
     "axios": "^1.7.7",
-    "lucide-svelte": "^0.453.0",
     "prettier-plugin-organize-imports": "^4.1.0",
     "svelte-i18n": "^4.0.0",
     "svelte-spa-router": "^4.0.1"
