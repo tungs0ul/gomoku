@@ -63,6 +63,16 @@ services:
     plugins:
       - name: cors
 
+  - name: grafana
+    url: http://grafana:3000/
+    plugins:
+      - name: cors
+    routes:
+      - name: grafana
+        strip_path: true
+        paths:
+          - /
+
   - name: backend-ws
     url: http://backend:11211/ws
     protocol: ws
@@ -263,7 +273,7 @@ services:
       - name: dashboard-all
         strip_path: true
         paths:
-          - /
+          - /studio
     plugins:
       - name: cors
       - name: basic-auth
