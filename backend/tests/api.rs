@@ -9,6 +9,7 @@ mod tests {
         http::{Request, StatusCode},
     };
 
+    use backend::{api::GamePayload, models::GameType};
     use tower::ServiceExt;
     use uuid::Uuid;
 
@@ -20,7 +21,7 @@ mod tests {
         let response = router
             .oneshot(
                 Request::builder()
-                    .uri("/health")
+                    .uri("/api/health")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -41,15 +42,31 @@ mod tests {
             axum::serve(listener, router).await.unwrap();
         });
 
-        let user_id = Uuid::new_v4();
-
+        let payload = GamePayload {
+            game_type: GameType::Bot,
+            user_id: Uuid::new_v4(),
+        };
         let client = reqwest::Client::new();
         let res = client
-            .get(format!("http://{addr}/game/bot/{user_id}"))
+            .post(format!("http://{addr}/api/games"))
+            .json(&payload)
             .send()
             .await;
         assert!(res.is_ok());
         let res = res.unwrap().text().await;
         assert!(res.is_ok());
+        let res = res.unwrap();
+        let res: Vec<&str> = res.split('/').collect();
+        match res[..] {
+            ["", "ws", "rooms", a, "users", b] => {
+                let a = Uuid::parse_str(a);
+                let b = Uuid::parse_str(b);
+                assert!(a.is_ok());
+                assert!(b.is_ok());
+            }
+            _ => {
+                panic!("Failed");
+            }
+        }
     }
 }

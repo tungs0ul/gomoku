@@ -8,7 +8,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use futures::SinkExt;
 use futures::StreamExt;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::collections::HashSet;
 use std::{collections::HashMap, sync::Arc};
@@ -48,11 +48,13 @@ impl AppState {
 pub fn app(pool: PgPool) -> Router {
     let state = AppState::new(pool);
     Router::new()
-        .route("/health", get(health_check)) // Keep simple utility endpoints as-is
-        .route("/games", post(play)) // POST to create a bot game
-        .route("/ws/rooms/:room_id/users/:user_id", get(websocket_handler)) // Clarify WebSocket path
-        .route("/rooms", get(get_rooms)) // Pluralize resource names
-        .route("/users", post(random_user)) // Pluralize resource names for user creation
+        //api
+        .route("/api/health", get(health_check))
+        .route("/api/games", post(play))
+        .route("/api/rooms", get(get_rooms))
+        .route("/api/users", post(random_user))
+        //ws
+        .route("/ws/rooms/:room_id/users/:user_id", get(websocket_handler))
         .layer(CorsLayer::permissive())
         .with_state(Arc::new(state))
 }
@@ -80,10 +82,10 @@ async fn health_check(State(_state): State<Arc<AppState>>) -> StatusCode {
     StatusCode::OK
 }
 
-#[derive(Debug, Deserialize)]
-struct GamePayload {
-    user_id: Uuid,
-    game_type: GameType,
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GamePayload {
+    pub user_id: Uuid,
+    pub game_type: GameType,
 }
 
 async fn play(

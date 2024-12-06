@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { HOST, PORT, user } from '$lib/store.svelte'
+  import { ANON_KEY, user, WS_URL } from '$lib/store.svelte'
   import type { Game, GameEvent, Message, Player } from '$lib/types'
   import GameRender from '$lib/Game.svelte'
   import { link, location } from 'svelte-spa-router'
@@ -15,6 +15,7 @@
   import Chat from '$lib/components/Chat.svelte'
   import * as Drawer from '$lib/components/ui/drawer'
   import MessageSquareMore from 'lucide-svelte/icons/message-square-more'
+  import { replace } from 'svelte-spa-router'
 
   let game = $state<Game | null>(null)
   let predicts = $state<{ row: number; col: number; score: number }[]>([])
@@ -50,11 +51,11 @@
     //   .post(`http://localhost:11211/api/play/bot/${user.user}`)
     //   .then(({ data }) => {
     //     console.log(data)
-    socket = new WebSocket(`ws://${HOST}:${PORT}${$location}`)
-    socket.onopen = () => {
-      socket!.send('Hello world')
-    }
-    socket.onclose = () => {
+    socket = new WebSocket(`${WS_URL}${$location}`)
+    socket.onclose = (ws) => {
+      if (ws.code === 0) {
+        replace('/')
+      }
       wsError = {
         type: 'error',
         title: $_('can-not-connect-to-room'),
