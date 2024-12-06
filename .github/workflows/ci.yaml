@@ -20,8 +20,8 @@ env:
 #  cancel-in-progress: true
 
 jobs:
-  CI:
-    name: CI
+  backend:
+    name: Backend Check
     runs-on: ubuntu-latest
 
     services:
@@ -81,8 +81,8 @@ jobs:
       - name: cargo build
         run: cargo b --workspace --all-targets --all-features
 
-  Frontend:
-    name: Frontend
+  frontend:
+    name: Frontend Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
