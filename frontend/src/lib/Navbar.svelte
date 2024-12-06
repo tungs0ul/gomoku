@@ -37,8 +37,7 @@
             class="flex items-center text-4xl"
             on:click={() => {
               locale.set(lang.value)
-            }}>{lang.icon} {lang.value}</DropdownMenu.Item
-          >
+            }}>{lang.icon} {lang.value}</DropdownMenu.Item>
         {/each}
       </DropdownMenu.Group>
     </DropdownMenu.Content>
