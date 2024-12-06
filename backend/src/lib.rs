@@ -1,3 +1,3 @@
 pub mod api;
 pub mod db;
-mod models;
+pub mod models;

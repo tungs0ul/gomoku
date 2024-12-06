@@ -8,7 +8,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use futures::SinkExt;
 use futures::StreamExt;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::collections::HashSet;
 use std::{collections::HashMap, sync::Arc};
@@ -82,10 +82,10 @@ async fn health_check(State(_state): State<Arc<AppState>>) -> StatusCode {
     StatusCode::OK
 }
 
-#[derive(Debug, Deserialize)]
-struct GamePayload {
-    user_id: Uuid,
-    game_type: GameType,
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GamePayload {
+    pub user_id: Uuid,
+    pub game_type: GameType,
 }
 
 async fn play(
