@@ -5,7 +5,6 @@
   import { Button } from '$lib/components/ui/button'
   import Settings from 'lucide-svelte/icons/settings'
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
-  console.log($locale)
 </script>
 
 <div class="flex h-full min-w-32 flex-col bg-[#0B192C] py-4 text-white">
@@ -38,7 +37,8 @@
             class="flex items-center text-4xl"
             on:click={() => {
               locale.set(lang.value)
-            }}>{lang.icon} {lang.value}</DropdownMenu.Item>
+            }}>{lang.icon} {lang.value}</DropdownMenu.Item
+          >
         {/each}
       </DropdownMenu.Group>
     </DropdownMenu.Content>

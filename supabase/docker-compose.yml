@@ -22,10 +22,10 @@ services:
     build: ./backend
     volumes:
       - ./backend:/backend
-    ports:
-      - "11211:11211"
+    # ports:
+    #   - "11211:11211"
     environment:
-      BACKEND_DATABASE_URL: postgres://postgres:$POSTGRES_PASSWORD@$POSTGRES_HOST:POSTGRES_PORT/postgres
+      BACKEND_DATABASE_URL: postgres://postgres:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/postgres
     depends_on:
       db:
         # Disable this if you are using an external Postgres database

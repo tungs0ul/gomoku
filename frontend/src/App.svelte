@@ -1,8 +1,6 @@
 <script>
   import './app.css'
-  import { Button } from '$lib/components/ui/button'
   import { Toaster } from '$lib/components/ui/sonner'
-  import axios from 'axios'
   import { user } from '$lib/store.svelte'
   import { isLoading } from 'svelte-i18n'
   import Navbar from '$lib/Navbar.svelte'
@@ -57,7 +55,7 @@
     </div>
     <QueryClientProvider client={queryClient}>
       {#if user.user !== null}
-        <main class="grid grow place-items-center p-2">
+        <main class="relative grid grow place-items-center p-2">
           <Router {routes} />
         </main>
       {/if}

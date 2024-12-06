@@ -63,13 +63,24 @@ services:
     plugins:
       - name: cors
 
+  - name: backend-ws
+    url: http://backend:11211/ws
+    protocol: ws
+    routes:
+      - name: backend-ws
+        strip_path: true
+        paths:
+          - /backend/v1/ws
+    plugins:
+      - name: cors
+
   - name: backend
-    url: http://backend:11211
+    url: http://backend:11211/api
     routes:
       - name: backend
         strip_path: true
         paths:
-          - /backend/v1/
+          - /backend/v1/api
     plugins:
       - name: cors
       - name: key-auth

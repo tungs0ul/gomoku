@@ -1,7 +1,14 @@
 import axios from 'axios'
 
-export const HOST = 'localhost'
-export const PORT = 11211
+export const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzMzNDM5NjAwLAogICJleHAiOiAxODkxMjA2MDAwCn0.mSdKDeE3nA0Ae4rPcTSGZv8KfOIf0ZJLHj3jG5D6RJo'
+
+
+
+// export const API_URL = 'https://api.sansantech.de/api'
+export const API_URL = 'https://kong.sansantech.de/backend/v1/api'
+// export const WS_URL = 'wss://api.sansantech.de'
+export const WS_URL = 'wss://kong.sansantech.de/backend/v1'
+
 
 export let api = {
   get_user: '/users',
@@ -10,7 +17,10 @@ export let api = {
 }
 
 export let client = axios.create({
-  baseURL: `http://${HOST}:${PORT}`
+  baseURL: `${API_URL}`,
+  headers: {
+    "apiKey": ANON_KEY
+  }
 })
 
 const createUser = () => {

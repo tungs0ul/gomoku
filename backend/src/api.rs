@@ -48,11 +48,13 @@ impl AppState {
 pub fn app(pool: PgPool) -> Router {
     let state = AppState::new(pool);
     Router::new()
-        .route("/health", get(health_check)) // Keep simple utility endpoints as-is
-        .route("/games", post(play)) // POST to create a bot game
-        .route("/ws/rooms/:room_id/users/:user_id", get(websocket_handler)) // Clarify WebSocket path
-        .route("/rooms", get(get_rooms)) // Pluralize resource names
-        .route("/users", post(random_user)) // Pluralize resource names for user creation
+        //api
+        .route("/api/health", get(health_check))
+        .route("/api/games", post(play))
+        .route("/api/rooms", get(get_rooms))
+        .route("/api/users", post(random_user))
+        //ws
+        .route("/ws/rooms/:room_id/users/:user_id", get(websocket_handler))
         .layer(CorsLayer::permissive())
         .with_state(Arc::new(state))
 }
