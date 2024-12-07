@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ANON_KEY, user, WS_URL } from '$lib/store.svelte'
+  import { auth, WS_URL } from '$lib/store.svelte'
   import type { Game, GameEvent, Message, Player } from '$lib/types'
   import GameRender from '$lib/Game.svelte'
   import { link, location } from 'svelte-spa-router'
@@ -47,11 +47,15 @@
   })
 
   onMount(() => {
+    if (auth.auth === null) return
     // axios
     //   .post(`http://localhost:11211/api/play/bot/${user.user}`)
     //   .then(({ data }) => {
     //     console.log(data)
     socket = new WebSocket(`${WS_URL}${$location}`)
+    socket.onopen = () => {
+      socket?.send(auth.auth?.access_token ?? '')
+    }
     socket.onclose = (ws) => {
       if (ws.code === 0) {
         replace('/')
@@ -63,6 +67,7 @@
       }
       // console.log('close', ev)
     }
+
     socket.onmessage = ({ data }) => {
       let msg: GameEvent = JSON.parse(data)
       switch (msg.event) {
@@ -72,9 +77,9 @@
           game = msg.game
           playAgain = false
           player =
-            msg.game.x === user.user
+            msg.game.x === auth.auth?.user.id
               ? 'x'
-              : msg.game.o === user.user
+              : msg.game.o === auth.auth?.user.id
                 ? 'o'
                 : null
           if (game.status === 'playing') {
@@ -156,7 +161,9 @@
           break
         case 'Message':
           messages.push(msg)
-          if (msg.user !== user.user) unReadMessages += 1
+
+          if (msg.user === null && msg.user !== auth.auth?.user.id)
+            unReadMessages += 1
           setTimeout(() => {
             chatBody?.scrollTo({
               top: chatBody.scrollHeight,

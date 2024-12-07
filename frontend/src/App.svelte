@@ -1,7 +1,6 @@
 <script>
   import './app.css'
   import { Toaster } from '$lib/components/ui/sonner'
-  import { user } from '$lib/store.svelte'
   import { isLoading } from 'svelte-i18n'
   import Navbar from '$lib/Navbar.svelte'
   import { _ } from 'svelte-i18n'
@@ -36,8 +35,6 @@
     // Catch-all route last
     '*': NotFound
   }
-
-  user.init()
 </script>
 
 <!-- <button onclick={createRoom}>Create room</button> -->
@@ -54,11 +51,9 @@
       <Navbar />
     </div>
     <QueryClientProvider client={queryClient}>
-      {#if user.user !== null}
-        <main class="relative grid grow place-items-center p-2">
-          <Router {routes} />
-        </main>
-      {/if}
+      <main class="relative grid grow place-items-center p-2">
+        <Router {routes} />
+      </main>
       <SvelteQueryDevtools />
     </QueryClientProvider>
   </div>

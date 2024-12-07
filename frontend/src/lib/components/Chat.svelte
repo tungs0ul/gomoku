@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { user } from '$lib/store.svelte'
+  import { auth } from '$lib/store.svelte'
   import Button from '$lib/components/ui/button/button.svelte'
   import { fly } from 'svelte/transition'
   import { Input } from '$lib/components/ui/input'
@@ -23,12 +23,12 @@
   <div bind:this={chatBody} class="flex grow flex-col overflow-auto">
     {#each messages as msg, i (msg.id)}
       <div
-        in:fly={{ x: user.user === msg.user ? 50 : -50 }}
+        in:fly={{ x: auth.auth?.user.id === msg.user ? 50 : -50 }}
         class="flex flex-col">
         {#if i === 0 || msg.user !== messages[i - 1].user}
           <span
-            class:self-start={msg.user !== user.user}
-            class:self-end={msg.user === user.user}
+            class:self-start={msg.user !== auth.auth?.user.id}
+            class:self-end={msg.user === auth.auth?.user.id}
             class="mb-1 mt-4 text-sm text-gray-500">
             {msg.user?.slice(0, 2) ?? ''}
           </span>
@@ -36,7 +36,7 @@
         {#if msg.user !== null}
           <div
             class={`mb-2 whitespace-pre-wrap rounded-2xl border px-4 py-2 shadow ${
-              msg.user === user.user
+              msg.user === auth.auth?.user.id
                 ? 'rounded-rb-0 self-end border-green-200 bg-green-100'
                 : 'rounded-lb-0 self-start border-gray-200 bg-white'
             }`}>
@@ -60,7 +60,12 @@
         return
       }
       socket?.send(
-        JSON.stringify({ event: 'Message', msg, user: 't', id: user.user })
+        JSON.stringify({
+          event: 'Message',
+          msg,
+          user: auth.auth?.user?.user_metadata?.name ?? $_('anonymous'),
+          id: auth.auth?.user.id
+        })
       )
       e.currentTarget.reset()
     }}>

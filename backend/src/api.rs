@@ -1,3 +1,4 @@
+use crate::auth::{Claims, DecodingKeyProvider};
 use crate::db::Db;
 use crate::models::{Game, GameEvent, GameStatus, GameType, Move, Player, PlayerStatus};
 use axum::extract::ws::{CloseFrame, Message, WebSocket};
@@ -8,6 +9,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use futures::SinkExt;
 use futures::StreamExt;
+use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::collections::HashSet;
@@ -19,6 +21,13 @@ use uuid::Uuid;
 pub struct AppState {
     rooms: Mutex<HashMap<Uuid, RoomState>>,
     db: Db,
+    decoding_key: DecodingKey,
+}
+
+impl DecodingKeyProvider for AppState {
+    fn decoding_key(&self) -> &DecodingKey {
+        &self.decoding_key
+    }
 }
 
 #[derive(Debug)]
@@ -37,16 +46,18 @@ impl RoomState {
 }
 
 impl AppState {
-    pub fn new(pool: PgPool) -> Self {
+    pub fn new(pool: PgPool, decoding_key: DecodingKey) -> Self {
         Self {
             rooms: Mutex::new(HashMap::new()),
             db: Db::new(pool),
+            decoding_key,
         }
     }
 }
 
-pub fn app(pool: PgPool) -> Router {
-    let state = AppState::new(pool);
+pub fn app(pool: PgPool, jwt_secret: &str) -> Router {
+    let decoding_key = DecodingKey::from_secret(jwt_secret.as_bytes());
+    let state = AppState::new(pool, decoding_key);
     Router::new()
         //api
         .route("/api/health", get(health_check))
@@ -54,7 +65,7 @@ pub fn app(pool: PgPool) -> Router {
         .route("/api/rooms", get(get_rooms))
         .route("/api/users", post(random_user))
         //ws
-        .route("/ws/rooms/:room_id/users/:user_id", get(websocket_handler))
+        .route("/ws/rooms/:room_id", get(websocket_handler))
         .layer(CorsLayer::permissive())
         .with_state(Arc::new(state))
 }
@@ -63,7 +74,10 @@ async fn random_user() -> String {
     Uuid::new_v4().to_string()
 }
 
-async fn get_rooms(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Game>>, StatusCode> {
+async fn get_rooms(
+    State(state): State<Arc<AppState>>,
+    _claims: Claims,
+) -> Result<Json<Vec<Game>>, StatusCode> {
     let rooms = state.rooms.lock().await;
     let rooms: Vec<Uuid> = { rooms.keys().map(|x| x.to_owned()).collect() };
     let rooms = state
@@ -84,25 +98,29 @@ async fn health_check(State(_state): State<Arc<AppState>>) -> StatusCode {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GamePayload {
-    pub user_id: Uuid,
     pub game_type: GameType,
 }
 
 async fn play(
     State(state): State<Arc<AppState>>,
-    Json(GamePayload { game_type, user_id }): Json<GamePayload>,
+    Claims { sub, .. }: Claims,
+    Json(GamePayload { game_type }): Json<GamePayload>,
 ) -> Result<String, StatusCode> {
-    let (user_id, room_id) = match game_type {
+    let user_id = Uuid::parse_str(&sub).map_err(|error| {
+        tracing::error!(?error);
+        StatusCode::UNAUTHORIZED
+    })?;
+    let room_id = match game_type {
         GameType::Bot => {
             let room_id = Uuid::new_v4();
-            let mut game = Game::new(room_id, Player::X, GameType::Bot);
+            let mut game: Game = Game::new(room_id, Player::X, GameType::Bot);
             game.x = Some(user_id);
             game.o = Some(Uuid::nil());
             state.db.new_game(&game).await.map_err(|error| {
                 tracing::error!(?error);
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
-            (user_id, room_id)
+            room_id
         }
         GameType::Normal => {
             #[allow(unused_assignments)]
@@ -127,7 +145,7 @@ async fn play(
                         tracing::error!(?err);
                         StatusCode::INTERNAL_SERVER_ERROR
                     })?;
-                    (user_id, game.room_id)
+                    game.room_id
                 }
                 None => {
                     let room_id: Uuid = Uuid::new_v4();
@@ -137,7 +155,7 @@ async fn play(
                         tracing::error!(?err);
                         StatusCode::INTERNAL_SERVER_ERROR
                     })?;
-                    (user_id, room_id)
+                    room_id
                 }
             }
         }
@@ -146,24 +164,51 @@ async fn play(
         }
     };
 
-    Ok(format!("/ws/rooms/{room_id}/users/{user_id}"))
+    Ok(format!("/ws/rooms/{room_id}"))
 }
 
 async fn websocket_handler(
-    Path((room_id, user_id)): Path<(String, String)>,
+    Path(room_id): Path<String>,
     ws: WebSocketUpgrade,
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| websocket(socket, state, room_id, user_id))
+    ws.on_upgrade(move |socket| websocket(socket, state, room_id))
 }
 
-async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String, user_id: String) {
+async fn websocket(stream: WebSocket, state: Arc<AppState>, room_id: String) {
+    let (mut sender, mut receiver) = stream.split();
+    let mut user_id = "".to_string();
+    while let Some(Ok(message)) = receiver.next().await {
+        if let Message::Text(token) = message {
+            let mut validation = Validation::default();
+            validation.set_audience(&["authenticated"]);
+            // Decode the user data
+            let token_data = decode::<Claims>(&token, state.decoding_key(), &validation);
+            tracing::info!(?token_data);
+            match token_data {
+                Err(_) => {
+                    let _ = sender
+                        .send(Message::Close(Some(CloseFrame {
+                            code: 0,
+                            reason: "Invalid token".into(),
+                        })))
+                        .await;
+                    return;
+                }
+                Ok(data) => {
+                    user_id = data.claims.sub;
+                    break;
+                }
+            }
+        }
+    }
+
     // let (mut sender, mut receiver) = stream.split();
     let user_id = Uuid::parse_str(&user_id);
     let room_id = Uuid::parse_str(&room_id);
     if user_id.is_err() || room_id.is_err() {
         tracing::error!("Invalid user or room id");
-        let _ = stream
+        let _ = sender
             .send(Message::Close(Some(CloseFrame {
                 code: 0,
                 reason: "Invalid user or room id".into(),
@@ -178,7 +223,7 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
         let game = state.db.get_active_game_for_room(&room_id).await;
         if game.is_err() {
             tracing::error!("Game not found");
-            let _ = stream
+            let _ = sender
                 .send(Message::Close(Some(CloseFrame {
                     code: 0,
                     reason: "Game not found".into(),
@@ -224,7 +269,7 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
             }
         }
 
-        if let Err(error) = stream
+        if let Err(error) = sender
             .send(Message::Text(
                 serde_json::to_string(&GameEvent::Game {
                     game: Box::new(game),
@@ -250,7 +295,7 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
         } else {
             let room = room.unwrap();
             if room.users.contains(&user_id) {
-                let _ = stream
+                let _ = sender
                     .send(Message::Close(Some(CloseFrame {
                         code: 0,
                         reason: "User already in room".into(),
@@ -264,7 +309,7 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
     }
 
     if tx.is_none() {
-        let _ = stream
+        let _ = sender
             .send(Message::Close(Some(CloseFrame {
                 code: 0,
                 reason: "No room found".into(),
@@ -278,7 +323,6 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
 
     let sender_state = state.clone();
     let sender_tx = tx.clone();
-    let (mut sender, mut receiver) = stream.split();
 
     let mut send_task = tokio::spawn(async move {
         while let Ok(msg) = rx.recv().await {
