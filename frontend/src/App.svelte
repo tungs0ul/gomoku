@@ -17,11 +17,6 @@
   const routes = {
     '/': Home,
 
-    '/sign-in': wrap({
-      // @ts-ignore
-      asyncComponent: () => import('$lib/pages/SignIn.svelte')
-    }),
-
     '/rooms': wrap({
       // @ts-ignore
       asyncComponent: () => import('$lib/pages/Rooms.svelte')

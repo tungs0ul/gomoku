@@ -30,5 +30,7 @@
   "play": "Play",
   "play-again": "Play again",
   "there-is-no-room-atm": "There is no rooms at the moment",
-  "back-to-main": "Back to main"
+  "back-to-main": "Back to main",
+  "en": "English",
+  "vn": "Tiếng Việt"
 }
