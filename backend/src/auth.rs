@@ -16,11 +16,17 @@ use {
     std::{fmt::Display, sync::Arc},
 };
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UserMetadata {
+    pub avatar_url: Option<String>,
+    pub name: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,
     pub exp: usize,
-    pub aud: String,
+    pub user_metadata: UserMetadata,
 }
 
 #[derive(Debug)]

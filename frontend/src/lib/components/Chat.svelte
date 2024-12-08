@@ -19,27 +19,31 @@
 </script>
 
 <div
-  class="flex h-full w-full flex-col gap-4 overflow-hidden rounded border bg-[#FFF5D7] p-4">
+  class="flex h-full w-full flex-col gap-4 overflow-hidden rounded border bg-[#FFF5D7] p-4"
+>
   <div bind:this={chatBody} class="flex grow flex-col overflow-auto">
     {#each messages as msg, i (msg.id)}
       <div
-        in:fly={{ x: auth.auth?.user.id === msg.user ? 50 : -50 }}
-        class="flex flex-col">
+        in:fly={{ x: auth.auth?.user.id === msg.user?.id ? 50 : -50 }}
+        class="flex flex-col"
+      >
         {#if i === 0 || msg.user !== messages[i - 1].user}
           <span
-            class:self-start={msg.user !== auth.auth?.user.id}
-            class:self-end={msg.user === auth.auth?.user.id}
-            class="mb-1 mt-4 text-sm text-gray-500">
-            {msg.user?.slice(0, 2) ?? ''}
+            class:self-start={msg.user?.id !== auth.auth?.user.id}
+            class:self-end={msg.user?.id === auth.auth?.user.id}
+            class="mb-1 mt-4 text-sm text-gray-500"
+          >
+            {msg.user?.name ?? 'Anonymous'}
           </span>
         {/if}
         {#if msg.user !== null}
           <div
             class={`mb-2 whitespace-pre-wrap rounded-2xl border px-4 py-2 shadow ${
-              msg.user === auth.auth?.user.id
+              msg.user.id === auth.auth?.user.id
                 ? 'rounded-rb-0 self-end border-green-200 bg-green-100'
                 : 'rounded-lb-0 self-start border-gray-200 bg-white'
-            }`}>
+            }`}
+          >
             {msg.msg}
           </div>
         {:else}
@@ -63,12 +67,13 @@
         JSON.stringify({
           event: 'Message',
           msg,
-          user: auth.auth?.user?.user_metadata?.name ?? $_('anonymous'),
+          user: null,
           id: auth.auth?.user.id
         })
       )
       e.currentTarget.reset()
-    }}>
+    }}
+  >
     <Input name="message" placeholder={$_('enter-to-trash-talk')} />
     <Button size="sm" type="submit" variant="ghost">
       <SendHorizontal class="h-12 w-12" />

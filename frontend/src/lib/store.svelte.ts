@@ -2,7 +2,9 @@ import { createClient, type AuthSession } from '@supabase/supabase-js'
 import axios from 'axios'
 
 export const SUPABASE_URL = 'https://kong.sansantech.de'
-export const BACKEND_URL = 'http://localhost:11211/api'
+// export const BACKEND_URL = 'http://localhost:11211/api'
+export const BACKEND_URL = 'https://kong.sansantech.de/backend/v1/api'
+export const WS_URL = 'wss://kong.sansantech.de/backend/v1'
 
 export const ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzMzNDM5NjAwLAogICJleHAiOiAxODkxMjA2MDAwCn0.mSdKDeE3nA0Ae4rPcTSGZv8KfOIf0ZJLHj3jG5D6RJo'
@@ -41,8 +43,7 @@ supabase.auth.onAuthStateChange((_event, session) => {
 
 // export const API_URL = 'https://api.sansantech.de/api'
 // export const WS_URL = 'wss://api.sansantech.de'
-export const WS_URL = 'ws://localhost:11211'
-// export const WS_URL = 'wss://kong.sansantech.de/backend/v1'
+// export const WS_URL = 'ws://localhost:11211'
 
 export let api = {
   get_user: '/users',

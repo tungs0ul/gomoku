@@ -1097,8 +1097,8 @@ pub enum GameEvent {
     },
     Message {
         msg: String,
-        user: Option<String>,
         id: Uuid,
+        user: Option<User>,
     },
     Status {
         status: GameStatus,
@@ -1106,4 +1106,11 @@ pub enum GameEvent {
     PlayerLeft,
     PlayAgain,
     Ended,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct User {
+    pub avatar: String,
+    pub name: String,
+    pub id: Uuid,
 }

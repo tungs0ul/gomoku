@@ -1,6 +1,6 @@
 use crate::auth::{Claims, DecodingKeyProvider};
 use crate::db::Db;
-use crate::models::{Game, GameEvent, GameStatus, GameType, Move, Player, PlayerStatus};
+use crate::models::{Game, GameEvent, GameStatus, GameType, Move, Player, PlayerStatus, User};
 use axum::extract::ws::{CloseFrame, Message, WebSocket};
 use axum::extract::{Path, State, WebSocketUpgrade};
 use axum::http::StatusCode;
@@ -178,6 +178,8 @@ async fn websocket_handler(
 async fn websocket(stream: WebSocket, state: Arc<AppState>, room_id: String) {
     let (mut sender, mut receiver) = stream.split();
     let mut user_id = "".to_string();
+    let mut user_name = "Anonymous".to_string();
+    let mut user_avatar = "".to_string();
     while let Some(Ok(message)) = receiver.next().await {
         if let Message::Text(token) = message {
             let mut validation = Validation::default();
@@ -197,6 +199,12 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>, room_id: String) {
                 }
                 Ok(data) => {
                     user_id = data.claims.sub;
+                    if let Some(name) = data.claims.user_metadata.name {
+                        user_name = name;
+                    }
+                    if let Some(avatar) = data.claims.user_metadata.avatar_url {
+                        user_avatar = avatar;
+                    }
                     break;
                 }
             }
@@ -353,7 +361,11 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>, room_id: String) {
                 GameEvent::Message { msg, .. } => {
                     let _ = sender_tx.send(GameEvent::Message {
                         msg,
-                        user: Some(user_id.to_string()),
+                        user: Some(User {
+                            name: user_name.clone(),
+                            avatar: user_avatar.clone(),
+                            id: user_id,
+                        }),
                         id: Uuid::new_v4(),
                     });
                 }

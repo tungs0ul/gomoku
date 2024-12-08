@@ -62,6 +62,6 @@ export type GameEvent =
 
 export type Message = {
   msg: string
-  user: string | null
+  user: { name: string; avatar: string; id: string } | null
   id: string
 }
