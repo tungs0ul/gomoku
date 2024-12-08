@@ -4,7 +4,7 @@ import axios from 'axios'
 export const SUPABASE_URL = 'https://kong.sansantech.de'
 // export const BACKEND_URL = 'http://localhost:11211/api'
 export const BACKEND_URL = 'https://kong.sansantech.de/backend/v1/api'
-export const WS_URL = 'wss://kong.sansantech.de/backend/v1'
+export const WS_URL = 'wss://kong.sansantech.de/backend/v1/ws'
 
 export const ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzMzNDM5NjAwLAogICJleHAiOiAxODkxMjA2MDAwCn0.mSdKDeE3nA0Ae4rPcTSGZv8KfOIf0ZJLHj3jG5D6RJo'

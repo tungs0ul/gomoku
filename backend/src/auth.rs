@@ -24,7 +24,7 @@ pub struct UserMetadata {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: String,
+    pub sub: uuid::Uuid,
     pub exp: usize,
     pub user_metadata: UserMetadata,
 }

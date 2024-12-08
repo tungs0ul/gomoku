@@ -101,15 +101,17 @@ pub struct GamePayload {
     pub game_type: GameType,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GameResponse {
+    room: Uuid,
+}
+
 async fn play(
     State(state): State<Arc<AppState>>,
     Claims { sub, .. }: Claims,
     Json(GamePayload { game_type }): Json<GamePayload>,
-) -> Result<String, StatusCode> {
-    let user_id = Uuid::parse_str(&sub).map_err(|error| {
-        tracing::error!(?error);
-        StatusCode::UNAUTHORIZED
-    })?;
+) -> Result<Json<GameResponse>, StatusCode> {
+    let user_id = sub;
     let room_id = match game_type {
         GameType::Bot => {
             let room_id = Uuid::new_v4();
@@ -164,7 +166,8 @@ async fn play(
         }
     };
 
-    Ok(format!("/ws/rooms/{room_id}"))
+    Ok(Json(GameResponse { room: room_id }))
+    // Ok(format!("/ws/rooms/{room_id}"))
 }
 
 async fn websocket_handler(
@@ -177,7 +180,7 @@ async fn websocket_handler(
 
 async fn websocket(stream: WebSocket, state: Arc<AppState>, room_id: String) {
     let (mut sender, mut receiver) = stream.split();
-    let mut user_id = "".to_string();
+    let mut user_id = None;
     let mut user_name = "Anonymous".to_string();
     let mut user_avatar = "".to_string();
     while let Some(Ok(message)) = receiver.next().await {
@@ -198,7 +201,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>, room_id: String) {
                     return;
                 }
                 Ok(data) => {
-                    user_id = data.claims.sub;
+                    user_id = Some(data.claims.sub);
                     if let Some(name) = data.claims.user_metadata.name {
                         user_name = name;
                     }
@@ -212,9 +215,8 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>, room_id: String) {
     }
 
     // let (mut sender, mut receiver) = stream.split();
-    let user_id = Uuid::parse_str(&user_id);
     let room_id = Uuid::parse_str(&room_id);
-    if user_id.is_err() || room_id.is_err() {
+    if user_id.is_none() || room_id.is_err() {
         tracing::error!("Invalid user or room id");
         let _ = sender
             .send(Message::Close(Some(CloseFrame {

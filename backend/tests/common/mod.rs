@@ -1,8 +1,33 @@
 use anyhow::Result;
 use axum::Router;
-use backend::api;
+use backend::{
+    api,
+    auth::{Claims, UserMetadata},
+};
+use jsonwebtoken::{encode, EncodingKey, Header};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use tokio::net::TcpListener;
+use uuid::Uuid;
+
+static JWT_SECRET: &str = "jwt_secret";
+
+pub fn generate_access_token() -> String {
+    let exp = chrono::Utc::now() + chrono::Duration::hours(1);
+    let claims = Claims {
+        sub: Uuid::new_v4(),
+        exp: exp.timestamp() as usize,
+        user_metadata: UserMetadata {
+            avatar_url: None,
+            name: None,
+        },
+    };
+    encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(JWT_SECRET.as_bytes()),
+    )
+    .expect("Failed to encode token")
+}
 
 pub async fn spawn_router() -> Result<(PgPool, Router, TcpListener)> {
     let db_name = uuid::Uuid::new_v4().to_string().replace('-', "");
@@ -18,7 +43,7 @@ pub async fn spawn_router() -> Result<(PgPool, Router, TcpListener)> {
     )
     .await
     .expect("Database connection failed");
-    let app = api::app(pool.clone());
+    let app = api::app(pool.clone(), JWT_SECRET);
     sqlx::migrate!("./migrations")
         .run(&pool)
         .await
