@@ -260,7 +260,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>, room_id: String) {
                     msg: format!(
                         "{} has joined room",
                         if user_name.is_empty() {
-                            format!("Anonymous {}", user_id.to_string()[..8].to_string())
+                            format!("Anonymous {}", &user_id.to_string()[..8])
                         } else {
                             user_name.clone()
                         }
@@ -354,7 +354,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>, room_id: String) {
     });
 
     user_name = if user_name.is_empty() {
-        format!("Anonymous {}", user_id.to_string()[..8].to_string())
+        format!("Anonymous {}", &user_id.to_string()[..8])
     } else {
         user_name.clone()
     };
@@ -560,7 +560,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>, room_id: String) {
                             msg: format!(
                                 "{} has left room",
                                 if user_name.is_empty() {
-                                    format!("Anonymous {}", user_id.to_string()[..8].to_string())
+                                    format!("Anonymous {}", &user_id.to_string()[..8])
                                 } else {
                                     user_name.clone()
                                 }
