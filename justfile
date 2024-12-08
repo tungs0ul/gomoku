@@ -30,3 +30,6 @@ pretty:
 
 migrate:
     cd backend && cargo sqlx migrate run
+
+supabase:
+    cd supabase && docker-compose up db auth kong -d

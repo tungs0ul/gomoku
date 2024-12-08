@@ -1,16 +1,22 @@
 <script lang="ts">
-  import { type Game, type GameType } from '$lib/types'
-  import { client, user, api } from '$lib/store.svelte'
+  import { type Game } from '$lib/types'
+  import { api, auth } from '$lib/store.svelte'
   import { flip } from 'svelte/animate'
   import { fly } from 'svelte/transition'
-  import { link } from 'svelte-spa-router'
+  import { link, replace } from 'svelte-spa-router'
   import Bot from 'lucide-svelte/icons/bot'
   import Zap from 'lucide-svelte/icons/zap'
   import { createQuery } from '@tanstack/svelte-query'
   import { _ } from 'svelte-i18n'
   import { Button } from '$lib/components/ui/button'
+
+  if (auth.auth === null) {
+    replace('/')
+  }
+
   const getRooms = async () => {
-    const { data } = await client.get(api.get_rooms)
+    if (auth.auth === null) return
+    const { data } = await auth.apiClient.get(api.get_rooms)
     return data
   }
 
@@ -43,7 +49,7 @@
     {#each $rooms.data as game (game.room_id)}
       <a
         use:link
-        href={`/ws/rooms/${game.room_id}/users/${user.user}`}
+        href={`/rooms/${game.room_id}`}
         animate:flip
         transition:fly
         class=" flex gap-4 rounded border bg-[#F5F0CD] px-6 py-4">

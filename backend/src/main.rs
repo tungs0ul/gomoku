@@ -9,6 +9,7 @@ lazy_static::lazy_static! {
 #[derive(Deserialize, Debug)]
 pub struct Config {
     pub database_url: String,
+    pub jwt_secret: String,
 }
 
 #[tokio::main]
@@ -29,7 +30,7 @@ async fn main() {
     if let Err(error) = sqlx::migrate!("./migrations").run(&pool).await {
         tracing::error!(?error);
     }
-    axum::serve(listener, api::app(pool))
+    axum::serve(listener, api::app(pool, &CONFIG.jwt_secret))
         .await
         .expect("Failed to run server");
 }

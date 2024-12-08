@@ -1,11 +1,10 @@
 <script>
   import './app.css'
   import { Toaster } from '$lib/components/ui/sonner'
-  import { user } from '$lib/store.svelte'
   import { isLoading } from 'svelte-i18n'
   import Navbar from '$lib/Navbar.svelte'
   import { _ } from 'svelte-i18n'
-  import Router from 'svelte-spa-router'
+  import Router, { replace } from 'svelte-spa-router'
   import { wrap } from 'svelte-spa-router/wrap'
   import Home from '$lib/pages/Home.svelte'
   import NotFound from '$lib/pages/NotFound.svelte'
@@ -17,10 +16,9 @@
 
   const routes = {
     '/': Home,
-
-    '/sign-in': wrap({
+    '/settings': wrap({
       // @ts-ignore
-      asyncComponent: () => import('$lib/pages/SignIn.svelte')
+      asyncComponent: () => import('$lib/pages/Settings.svelte')
     }),
 
     '/rooms': wrap({
@@ -28,7 +26,7 @@
       asyncComponent: () => import('$lib/pages/Rooms.svelte')
     }),
 
-    '/ws/*': wrap({
+    '/rooms/:room_id': wrap({
       // @ts-ignore
       asyncComponent: () => import('$lib/pages/Play.svelte')
     }),
@@ -36,8 +34,6 @@
     // Catch-all route last
     '*': NotFound
   }
-
-  user.init()
 </script>
 
 <!-- <button onclick={createRoom}>Create room</button> -->
@@ -54,11 +50,9 @@
       <Navbar />
     </div>
     <QueryClientProvider client={queryClient}>
-      {#if user.user !== null}
-        <main class="relative grid grow place-items-center p-2">
-          <Router {routes} />
-        </main>
-      {/if}
+      <main class="relative grid grow place-items-center p-2">
+        <Router {routes} />
+      </main>
       <SvelteQueryDevtools />
     </QueryClientProvider>
   </div>

@@ -3,15 +3,17 @@ mod common;
 #[cfg(test)]
 mod tests {
     // use http_body_util::BodyExt;
-    use crate::common;
+    use crate::common::{self, generate_access_token};
     use axum::{
         body::Body,
         http::{Request, StatusCode},
     };
 
-    use backend::{api::GamePayload, models::GameType};
+    use backend::{
+        api::{GamePayload, GameResponse},
+        models::GameType,
+    };
     use tower::ServiceExt;
-    use uuid::Uuid;
 
     #[tokio::test]
     async fn test_healthcheck() {
@@ -44,29 +46,18 @@ mod tests {
 
         let payload = GamePayload {
             game_type: GameType::Bot,
-            user_id: Uuid::new_v4(),
         };
         let client = reqwest::Client::new();
+        let token = generate_access_token();
         let res = client
             .post(format!("http://{addr}/api/games"))
+            .bearer_auth(token)
             .json(&payload)
             .send()
             .await;
+
         assert!(res.is_ok());
-        let res = res.unwrap().text().await;
+        let res = res.unwrap().json::<GameResponse>().await;
         assert!(res.is_ok());
-        let res = res.unwrap();
-        let res: Vec<&str> = res.split('/').collect();
-        match res[..] {
-            ["", "ws", "rooms", a, "users", b] => {
-                let a = Uuid::parse_str(a);
-                let b = Uuid::parse_str(b);
-                assert!(a.is_ok());
-                assert!(b.is_ok());
-            }
-            _ => {
-                panic!("Failed");
-            }
-        }
     }
 }

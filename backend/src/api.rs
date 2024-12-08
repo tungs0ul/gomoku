@@ -1,5 +1,6 @@
+use crate::auth::{Claims, DecodingKeyProvider};
 use crate::db::Db;
-use crate::models::{Game, GameEvent, GameStatus, GameType, Move, Player, PlayerStatus};
+use crate::models::{Game, GameEvent, GameStatus, GameType, Move, Player, PlayerStatus, User};
 use axum::extract::ws::{CloseFrame, Message, WebSocket};
 use axum::extract::{Path, State, WebSocketUpgrade};
 use axum::http::StatusCode;
@@ -8,6 +9,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use futures::SinkExt;
 use futures::StreamExt;
+use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::collections::HashSet;
@@ -19,6 +21,13 @@ use uuid::Uuid;
 pub struct AppState {
     rooms: Mutex<HashMap<Uuid, RoomState>>,
     db: Db,
+    decoding_key: DecodingKey,
+}
+
+impl DecodingKeyProvider for AppState {
+    fn decoding_key(&self) -> &DecodingKey {
+        &self.decoding_key
+    }
 }
 
 #[derive(Debug)]
@@ -37,16 +46,18 @@ impl RoomState {
 }
 
 impl AppState {
-    pub fn new(pool: PgPool) -> Self {
+    pub fn new(pool: PgPool, decoding_key: DecodingKey) -> Self {
         Self {
             rooms: Mutex::new(HashMap::new()),
             db: Db::new(pool),
+            decoding_key,
         }
     }
 }
 
-pub fn app(pool: PgPool) -> Router {
-    let state = AppState::new(pool);
+pub fn app(pool: PgPool, jwt_secret: &str) -> Router {
+    let decoding_key = DecodingKey::from_secret(jwt_secret.as_bytes());
+    let state = AppState::new(pool, decoding_key);
     Router::new()
         //api
         .route("/api/health", get(health_check))
@@ -54,7 +65,7 @@ pub fn app(pool: PgPool) -> Router {
         .route("/api/rooms", get(get_rooms))
         .route("/api/users", post(random_user))
         //ws
-        .route("/ws/rooms/:room_id/users/:user_id", get(websocket_handler))
+        .route("/ws/rooms/:room_id", get(websocket_handler))
         .layer(CorsLayer::permissive())
         .with_state(Arc::new(state))
 }
@@ -63,7 +74,10 @@ async fn random_user() -> String {
     Uuid::new_v4().to_string()
 }
 
-async fn get_rooms(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Game>>, StatusCode> {
+async fn get_rooms(
+    State(state): State<Arc<AppState>>,
+    _claims: Claims,
+) -> Result<Json<Vec<Game>>, StatusCode> {
     let rooms = state.rooms.lock().await;
     let rooms: Vec<Uuid> = { rooms.keys().map(|x| x.to_owned()).collect() };
     let rooms = state
@@ -84,25 +98,31 @@ async fn health_check(State(_state): State<Arc<AppState>>) -> StatusCode {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GamePayload {
-    pub user_id: Uuid,
     pub game_type: GameType,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GameResponse {
+    room: Uuid,
 }
 
 async fn play(
     State(state): State<Arc<AppState>>,
-    Json(GamePayload { game_type, user_id }): Json<GamePayload>,
-) -> Result<String, StatusCode> {
-    let (user_id, room_id) = match game_type {
+    Claims { sub, .. }: Claims,
+    Json(GamePayload { game_type }): Json<GamePayload>,
+) -> Result<Json<GameResponse>, StatusCode> {
+    let user_id = sub;
+    let room_id = match game_type {
         GameType::Bot => {
             let room_id = Uuid::new_v4();
-            let mut game = Game::new(room_id, Player::X, GameType::Bot);
+            let mut game: Game = Game::new(room_id, Player::X, GameType::Bot);
             game.x = Some(user_id);
             game.o = Some(Uuid::nil());
             state.db.new_game(&game).await.map_err(|error| {
                 tracing::error!(?error);
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
-            (user_id, room_id)
+            room_id
         }
         GameType::Normal => {
             #[allow(unused_assignments)]
@@ -127,7 +147,7 @@ async fn play(
                         tracing::error!(?err);
                         StatusCode::INTERNAL_SERVER_ERROR
                     })?;
-                    (user_id, game.room_id)
+                    game.room_id
                 }
                 None => {
                     let room_id: Uuid = Uuid::new_v4();
@@ -137,7 +157,7 @@ async fn play(
                         tracing::error!(?err);
                         StatusCode::INTERNAL_SERVER_ERROR
                     })?;
-                    (user_id, room_id)
+                    room_id
                 }
             }
         }
@@ -146,24 +166,59 @@ async fn play(
         }
     };
 
-    Ok(format!("/ws/rooms/{room_id}/users/{user_id}"))
+    Ok(Json(GameResponse { room: room_id }))
+    // Ok(format!("/ws/rooms/{room_id}"))
 }
 
 async fn websocket_handler(
-    Path((room_id, user_id)): Path<(String, String)>,
+    Path(room_id): Path<String>,
     ws: WebSocketUpgrade,
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| websocket(socket, state, room_id, user_id))
+    ws.on_upgrade(move |socket| websocket(socket, state, room_id))
 }
 
-async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String, user_id: String) {
+async fn websocket(stream: WebSocket, state: Arc<AppState>, room_id: String) {
+    let (mut sender, mut receiver) = stream.split();
+    let mut user_id = None;
+    let mut user_name = "".to_string();
+    let mut user_avatar = "".to_string();
+    while let Some(Ok(message)) = receiver.next().await {
+        if let Message::Text(token) = message {
+            let mut validation = Validation::default();
+            validation.set_audience(&["authenticated"]);
+            // Decode the user data
+            let token_data = decode::<Claims>(&token, state.decoding_key(), &validation);
+            tracing::info!(?token_data);
+            match token_data {
+                Err(_) => {
+                    let _ = sender
+                        .send(Message::Close(Some(CloseFrame {
+                            code: 0,
+                            reason: "Invalid token".into(),
+                        })))
+                        .await;
+                    return;
+                }
+                Ok(data) => {
+                    user_id = Some(data.claims.sub);
+                    if let Some(name) = data.claims.user_metadata.name {
+                        user_name = name;
+                    }
+                    if let Some(avatar) = data.claims.user_metadata.avatar_url {
+                        user_avatar = avatar;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
     // let (mut sender, mut receiver) = stream.split();
-    let user_id = Uuid::parse_str(&user_id);
     let room_id = Uuid::parse_str(&room_id);
-    if user_id.is_err() || room_id.is_err() {
+    if user_id.is_none() || room_id.is_err() {
         tracing::error!("Invalid user or room id");
-        let _ = stream
+        let _ = sender
             .send(Message::Close(Some(CloseFrame {
                 code: 0,
                 reason: "Invalid user or room id".into(),
@@ -178,7 +233,7 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
         let game = state.db.get_active_game_for_room(&room_id).await;
         if game.is_err() {
             tracing::error!("Game not found");
-            let _ = stream
+            let _ = sender
                 .send(Message::Close(Some(CloseFrame {
                     code: 0,
                     reason: "Game not found".into(),
@@ -202,7 +257,14 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
                 if let Err(error) = room.tx.send(GameEvent::Message {
                     user: None,
                     id: Uuid::new_v4(),
-                    msg: format!("{user_id} has joined room"),
+                    msg: format!(
+                        "{} has joined room",
+                        if user_name.is_empty() {
+                            format!("Anonymous {}", &user_id.to_string()[..8])
+                        } else {
+                            user_name.clone()
+                        }
+                    ),
                 }) {
                     tracing::error!(?error, "Error sending game status");
                 }
@@ -224,7 +286,7 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
             }
         }
 
-        if let Err(error) = stream
+        if let Err(error) = sender
             .send(Message::Text(
                 serde_json::to_string(&GameEvent::Game {
                     game: Box::new(game),
@@ -250,7 +312,7 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
         } else {
             let room = room.unwrap();
             if room.users.contains(&user_id) {
-                let _ = stream
+                let _ = sender
                     .send(Message::Close(Some(CloseFrame {
                         code: 0,
                         reason: "User already in room".into(),
@@ -264,7 +326,7 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
     }
 
     if tx.is_none() {
-        let _ = stream
+        let _ = sender
             .send(Message::Close(Some(CloseFrame {
                 code: 0,
                 reason: "No room found".into(),
@@ -278,7 +340,6 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
 
     let sender_state = state.clone();
     let sender_tx = tx.clone();
-    let (mut sender, mut receiver) = stream.split();
 
     let mut send_task = tokio::spawn(async move {
         while let Ok(msg) = rx.recv().await {
@@ -291,6 +352,13 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
             }
         }
     });
+
+    user_name = if user_name.is_empty() {
+        format!("Anonymous {}", &user_id.to_string()[..8])
+    } else {
+        user_name.clone()
+    };
+    let sender_user_name = user_name.clone();
 
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
@@ -309,7 +377,11 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
                 GameEvent::Message { msg, .. } => {
                     let _ = sender_tx.send(GameEvent::Message {
                         msg,
-                        user: Some(user_id.to_string()),
+                        user: Some(User {
+                            name: sender_user_name.clone(),
+                            avatar: user_avatar.clone(),
+                            id: user_id,
+                        }),
                         id: Uuid::new_v4(),
                     });
                 }
@@ -482,6 +554,20 @@ async fn websocket(mut stream: WebSocket, state: Arc<AppState>, room_id: String,
                             tracing::error!(?error, "Error updating game status");
                         }
                         if let Err(error) = room.tx.send(GameEvent::PlayerLeft) {
+                            tracing::error!(?error, "Error sending player left");
+                        }
+                        if let Err(error) = room.tx.send(GameEvent::Message {
+                            msg: format!(
+                                "{} has left room",
+                                if user_name.is_empty() {
+                                    format!("Anonymous {}", &user_id.to_string()[..8])
+                                } else {
+                                    user_name.clone()
+                                }
+                            ),
+                            id: Uuid::new_v4(),
+                            user: None,
+                        }) {
                             tracing::error!(?error, "Error sending player left");
                         }
                     }
