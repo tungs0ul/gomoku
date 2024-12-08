@@ -16,7 +16,7 @@
     <a href="/" use:link>Gomoku</a>
   </div>
 
-  <div class="flex grow flex-col gap-2 px-4">
+  <div class="flex flex-col gap-2 px-4">
     {#if auth.auth === null || auth.auth.user.is_anonymous}
       <Button
         on:click={() => {
