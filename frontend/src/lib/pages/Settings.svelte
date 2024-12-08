@@ -1,7 +1,10 @@
 <script lang="ts">
   import * as Card from '$lib/components/ui/card/index.js'
-  import { auth } from '$lib/store.svelte'
+  import { auth, supabase } from '$lib/store.svelte'
   import User from 'lucide-svelte/icons/user'
+  import { Button } from '$lib/components/ui/button'
+  import { _ } from 'svelte-i18n'
+  import { replace } from 'svelte-spa-router'
 </script>
 
 <div class="grid place-items-center">
@@ -13,18 +16,27 @@
             class="h-32 w-32 rounded-full"
             src={auth.auth?.user.user_metadata.avatar_url ??
               'https://www.flaticon.com/free-icons/user'}
-            alt="avatar"
-          />
+            alt="avatar" />
         {:else}
           <User class="h-32 w-32 rounded-full" />
         {/if}
       </Card.Title>
     </Card.Header>
     <Card.Content>
-      {auth.auth?.user.user_metadata.name ?? 'Anonymous'}
+      <div class="flex flex-col gap-4">
+        {auth.auth?.user.user_metadata.name ?? 'Anonymous'}
+        {auth.auth?.user.email ?? 'Email'}
+      </div>
     </Card.Content>
     <Card.Footer>
-      {auth.auth?.user.email ?? 'Email'}
+      <Button
+        variant="destructive"
+        class="w-full"
+        on:click={() => {
+          supabase.auth.signOut().then(() => {
+            replace('/')
+          })
+        }}>{$_('sign-out')}</Button>
     </Card.Footer>
   </Card.Root>
 </div>

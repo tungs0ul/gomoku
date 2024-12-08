@@ -25,7 +25,7 @@
       <div
         in:fly={{ x: auth.auth?.user.id === msg.user?.id ? 50 : -50 }}
         class="flex flex-col">
-        {#if i === 0 || msg.user?.id !== messages[i - 1].user?.id}
+        {#if msg.user !== null && (i === 0 || msg.user?.id !== messages[i - 1].user?.id)}
           {#if msg.user?.id !== auth.auth?.user.id}
             <span
               class="mb-1 mt-4 flex items-center gap-2 self-start text-sm text-gray-500">
@@ -37,7 +37,7 @@
                     class="h-8 w-8 rounded-full" />
                 </div>
               {/if}
-              {msg.user?.name ?? 'Anonymous'}
+              {msg.user?.name ?? ''}
             </span>
           {:else}
             <span

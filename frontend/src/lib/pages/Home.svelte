@@ -98,8 +98,7 @@
         <Button
           size="lg"
           class="justify-start bg-blue-400 px-16 py-8 text-left text-4xl"
-          on:click={() => createGame('bot')}
-        >
+          on:click={() => createGame('bot')}>
           <!-- <Bot class="mr-2 h-4 w-4" /> -->
           {$_('play-with-bot')}
         </Button>
@@ -107,8 +106,7 @@
         <Button
           size="lg"
           class="justify-start bg-green-400 px-16 py-8 text-4xl"
-          on:click={() => createGame('normal')}
-        >
+          on:click={() => createGame('normal')}>
           <!-- <User class="mr-2 h-4 w-4" /> -->
           {$_('play-online')}
         </Button>
@@ -123,8 +121,7 @@
           }}
           class="w-full justify-start px-16 py-8 text-4xl"
           size="lg"
-          variant="secondary"
-        >
+          variant="secondary">
           {$_('watch')}
         </Button>
       </div>
@@ -137,8 +134,7 @@
     open={signInCommand !== null}
     onOpenChange={() => {
       signInCommand = null
-    }}
-  >
+    }}>
     <Dialog.Content class="bg-zinc-700">
       <Dialog.Header>
         <Dialog.Title class="text-green-400">{$_('Gomoku')}</Dialog.Title>

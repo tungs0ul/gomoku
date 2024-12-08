@@ -1,10 +1,14 @@
 import { createClient, type AuthSession } from '@supabase/supabase-js'
 import axios from 'axios'
 
-export const SUPABASE_URL = import.meta.env.VITE_KONG_URL ?? 'https://kong.sansantech.de'
-export const BACKEND_URL = import.meta.env.VITE_API_URL ?? 'https://kong.sansantech.de/backend/v1/api'
-export const WS_URL = import.meta.env.VITE_WS_URL ?? 'wss://kong.sansantech.de/backend/v1/ws'
-export const ANON_KEY = import.meta.env.VITE_ANON_KEY ??
+export const SUPABASE_URL =
+  import.meta.env.VITE_KONG_URL ?? 'https://kong.sansantech.de'
+export const BACKEND_URL =
+  import.meta.env.VITE_API_URL ?? 'https://kong.sansantech.de/backend/v1/api'
+export const WS_URL =
+  import.meta.env.VITE_WS_URL ?? 'wss://kong.sansantech.de/backend/v1/ws'
+export const ANON_KEY =
+  import.meta.env.VITE_ANON_KEY ??
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzMzNDM5NjAwLAogICJleHAiOiAxODkxMjA2MDAwCn0.mSdKDeE3nA0Ae4rPcTSGZv8KfOIf0ZJLHj3jG5D6RJo'
 
 export const supabase = createClient(SUPABASE_URL, ANON_KEY)

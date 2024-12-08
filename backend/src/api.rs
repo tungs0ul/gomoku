@@ -181,7 +181,7 @@ async fn websocket_handler(
 async fn websocket(stream: WebSocket, state: Arc<AppState>, room_id: String) {
     let (mut sender, mut receiver) = stream.split();
     let mut user_id = None;
-    let mut user_name = "Anonymous".to_string();
+    let mut user_name = "".to_string();
     let mut user_avatar = "".to_string();
     while let Some(Ok(message)) = receiver.next().await {
         if let Message::Text(token) = message {
@@ -257,7 +257,14 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>, room_id: String) {
                 if let Err(error) = room.tx.send(GameEvent::Message {
                     user: None,
                     id: Uuid::new_v4(),
-                    msg: format!("{user_id} has joined room"),
+                    msg: format!(
+                        "{} has joined room",
+                        if user_name.is_empty() {
+                            format!("Anonymous {}", user_id.to_string()[..8].to_string())
+                        } else {
+                            user_name.clone()
+                        }
+                    ),
                 }) {
                     tracing::error!(?error, "Error sending game status");
                 }
@@ -346,6 +353,13 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>, room_id: String) {
         }
     });
 
+    user_name = if user_name.is_empty() {
+        format!("Anonymous {}", user_id.to_string()[..8].to_string())
+    } else {
+        user_name.clone()
+    };
+    let sender_user_name = user_name.clone();
+
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
             let msg = serde_json::from_str::<GameEvent>(&text);
@@ -364,7 +378,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>, room_id: String) {
                     let _ = sender_tx.send(GameEvent::Message {
                         msg,
                         user: Some(User {
-                            name: user_name.clone(),
+                            name: sender_user_name.clone(),
                             avatar: user_avatar.clone(),
                             id: user_id,
                         }),
@@ -540,6 +554,20 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>, room_id: String) {
                             tracing::error!(?error, "Error updating game status");
                         }
                         if let Err(error) = room.tx.send(GameEvent::PlayerLeft) {
+                            tracing::error!(?error, "Error sending player left");
+                        }
+                        if let Err(error) = room.tx.send(GameEvent::Message {
+                            msg: format!(
+                                "{} has left room",
+                                if user_name.is_empty() {
+                                    format!("Anonymous {}", user_id.to_string()[..8].to_string())
+                                } else {
+                                    user_name.clone()
+                                }
+                            ),
+                            id: Uuid::new_v4(),
+                            user: None,
+                        }) {
                             tracing::error!(?error, "Error sending player left");
                         }
                     }

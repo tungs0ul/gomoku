@@ -21,8 +21,7 @@
         on:click={() => {
           openSignInModal = true
         }}
-        class="w-full bg-green-600 hover:bg-green-500">{$_('sign-in')}</Button
-      >
+        class="w-full bg-green-600 hover:bg-green-500">{$_('sign-in')}</Button>
     {/if}
   </div>
 </div>
@@ -39,7 +38,6 @@
       callback={() => {
         replace('/')
       }}
-      enableSignInAnonymously={false}
-    />
+      enableSignInAnonymously={false} />
   </Dialog.Content>
 </Dialog.Root>

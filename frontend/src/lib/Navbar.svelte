@@ -21,8 +21,7 @@
     <a
       href="/"
       use:link
-      class="flex cursor-pointer items-center gap-2 px-4 py-4 text-lg hover:bg-[#000000]"
-    >
+      class="flex cursor-pointer items-center gap-2 px-4 py-4 text-lg hover:bg-[#000000]">
       <div><Play /></div>
       <div>{$_('play')}</div>
     </a>
@@ -34,8 +33,7 @@
         on:click={() => {
           openSignInModal = true
         }}
-        class="w-full bg-green-600 hover:bg-green-500">{$_('sign-in')}</Button
-      >
+        class="w-full bg-green-600 hover:bg-green-500">{$_('sign-in')}</Button>
     {/if}
   </div>
 
@@ -57,8 +55,7 @@
               class="flex items-center text-2xl"
               on:click={() => {
                 locale.set(lang.value)
-              }}>{lang.icon} {$_(lang.value)}</DropdownMenu.Item
-            >
+              }}>{lang.icon} {$_(lang.value)}</DropdownMenu.Item>
           {/each}
         </DropdownMenu.Group>
       </DropdownMenu.Content>
@@ -90,7 +87,6 @@
       callback={() => {
         replace('/')
       }}
-      enableSignInAnonymously={false}
-    />
+      enableSignInAnonymously={false} />
   </Dialog.Content>
 </Dialog.Root>
