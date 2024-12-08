@@ -141,11 +141,9 @@
   >
     <Dialog.Content class="bg-zinc-700">
       <Dialog.Header>
-        <Dialog.Title class="text-green-400"
-          >{$_('play-gomoku-online')}</Dialog.Title
-        >
+        <Dialog.Title class="text-green-400">{$_('Gomoku')}</Dialog.Title>
         <Dialog.Description class="text-[#769656]">
-          {$_('please-login-to-join-gomoku')}
+          {$_('login-to-play')}
         </Dialog.Description>
       </Dialog.Header>
       <SignIn callback={signInCallback} enableSignInAnonymously={true} />

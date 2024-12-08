@@ -4,7 +4,7 @@
   import { isLoading } from 'svelte-i18n'
   import Navbar from '$lib/Navbar.svelte'
   import { _ } from 'svelte-i18n'
-  import Router from 'svelte-spa-router'
+  import Router, { replace } from 'svelte-spa-router'
   import { wrap } from 'svelte-spa-router/wrap'
   import Home from '$lib/pages/Home.svelte'
   import NotFound from '$lib/pages/NotFound.svelte'
@@ -16,6 +16,10 @@
 
   const routes = {
     '/': Home,
+    '/settings': wrap({
+      // @ts-ignore
+      asyncComponent: () => import('$lib/pages/Settings.svelte')
+    }),
 
     '/rooms': wrap({
       // @ts-ignore
