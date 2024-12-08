@@ -8,11 +8,7 @@ name: supabase
 
 services:
   jaeger:
-    image: jaegertracing/all-in-one:1.6.0
-    ports:
-      - "6831:6831"
-      - "6832:6832"
-      - "16686:16686"
+    image: jaegertracing/all-in-one:1.41.0
     environment:
       - METRICS_STORAGE_TYPE=prometheus
       - PROMETHEUS_SERVER_URL=http://prometheus:9090
@@ -421,8 +417,8 @@ services:
     # depends_on:
     #   vector:
     #     condition: service_healthy
-    ports:
-      - "5432:5432"
+    # ports:
+    #   - "5432:5432"
     command:
       - postgres
       - -c
