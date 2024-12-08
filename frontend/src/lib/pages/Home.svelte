@@ -100,8 +100,7 @@
         <Button
           size="lg"
           class="justify-start bg-blue-400 px-16 py-8 text-left text-4xl"
-          on:click={() => createGame('bot')}
-        >
+          on:click={() => createGame('bot')}>
           <!-- <Bot class="mr-2 h-4 w-4" /> -->
           {$_('play-with-bot')}
         </Button>
@@ -109,8 +108,7 @@
         <Button
           size="lg"
           class="justify-start bg-green-400 px-16 py-8 text-4xl"
-          on:click={() => createGame('normal')}
-        >
+          on:click={() => createGame('normal')}>
           <!-- <User class="mr-2 h-4 w-4" /> -->
           {$_('play-online')}
         </Button>
@@ -125,8 +123,7 @@
           }}
           class="w-full justify-start px-16 py-8 text-4xl"
           size="lg"
-          variant="secondary"
-        >
+          variant="secondary">
           {$_('watch')}
         </Button>
       </div>
@@ -141,8 +138,7 @@
       if (!open) {
         commandAfterLogin = null
       }
-    }}
-  >
+    }}>
     <Dialog.Content>
       <Dialog.Header>
         <Dialog.Title>{$_('play-gomoku-online')}</Dialog.Title>
@@ -158,23 +154,20 @@
             supabase.auth
               .signInWithOAuth({ provider: 'github' })
               .then(signInAndResumeLastCommand)
-          }}>{$_('login-with-github')}</Button
-        >
+          }}>{$_('login-with-github')}</Button>
         <Button
           on:click={() => {
             supabase.auth
               .signInWithOAuth({ provider: 'google' })
               .then(signInAndResumeLastCommand)
           }}
-          variant="secondary">{$_('login-with-google')}</Button
-        >
+          variant="secondary">{$_('login-with-google')}</Button>
 
         <Button
           variant="link"
           onclick={() => {
             supabase.auth.signInAnonymously().then(signInAndResumeLastCommand)
-          }}>{$_('play-as-guest')}</Button
-        >
+          }}>{$_('play-as-guest')}</Button>
       </div>
     </Dialog.Content>
   </Dialog.Root>

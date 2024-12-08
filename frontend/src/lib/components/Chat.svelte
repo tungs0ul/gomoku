@@ -19,30 +19,31 @@
 </script>
 
 <div
-  class="flex h-full w-full flex-col gap-4 overflow-hidden rounded border bg-[#FFF5D7] p-4"
->
+  class="flex h-full w-full flex-col gap-4 overflow-hidden rounded border bg-[#FFF5D7] p-4">
   <div bind:this={chatBody} class="flex grow flex-col overflow-auto">
     {#each messages as msg, i (msg.id)}
       <div
         in:fly={{ x: auth.auth?.user.id === msg.user?.id ? 50 : -50 }}
-        class="flex flex-col"
-      >
+        class="flex flex-col">
         {#if i === 0 || msg.user?.id !== messages[i - 1].user?.id}
+          {#if msg.user?.id !== auth.auth?.user.id}
+            <span
+              class="mb-1 mt-4 flex items-center gap-2 self-start text-sm text-gray-500">
+              {#if msg.user?.avatar}
+                <div class="flex justify-end">
+                  <img
+                    src={msg.user.avatar}
+                    alt="avatar"
+                    class="h-8 w-8 rounded-full" />
+                </div>
+              {/if}
+              {msg.user?.name ?? 'Anonymous'}
+            </span>
+          {/if}
+        {:else}
           <span
-            class:self-start={msg.user?.id !== auth.auth?.user.id}
-            class:self-end={msg.user?.id === auth.auth?.user.id}
-            class="mb-1 mt-4 flex items-center gap-2 text-sm text-gray-500"
-          >
-            {#if msg.user?.avatar}
-              <div class="flex justify-end">
-                <img
-                  src={msg.user.avatar}
-                  alt="avatar"
-                  class="h-8 w-8 rounded-full"
-                />
-              </div>
-            {/if}
-            {msg.user?.name ?? 'Anonymous'}
+            class="mb-1 mt-4 flex items-center gap-2 self-end text-sm text-green-500">
+            {$_('you')}
           </span>
         {/if}
         {#if msg.user !== null}
@@ -51,8 +52,7 @@
               msg.user.id === auth.auth?.user.id
                 ? 'rounded-rb-0 self-end border-green-200 bg-green-100'
                 : 'rounded-lb-0 self-start border-gray-200 bg-white'
-            }`}
-          >
+            }`}>
             {msg.msg}
           </div>
         {:else}
@@ -81,8 +81,7 @@
         })
       )
       e.currentTarget.reset()
-    }}
-  >
+    }}>
     <Input name="message" placeholder={$_('enter-to-trash-talk')} />
     <Button size="sm" type="submit" variant="ghost">
       <SendHorizontal class="h-12 w-12" />
