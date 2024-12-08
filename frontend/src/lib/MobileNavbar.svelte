@@ -6,6 +6,7 @@
   import { auth } from './store.svelte'
   import * as Dialog from '$lib/components/ui/dialog'
   import SignIn from '$lib/components/SignIn.svelte'
+  import Settings from 'lucide-svelte/icons/settings'
 
   let openSignInModal = $state(false)
 </script>
@@ -21,7 +22,14 @@
         on:click={() => {
           openSignInModal = true
         }}
-        class="w-full bg-green-600 hover:bg-green-500">{$_('sign-in')}</Button>
+        class="w-full bg-green-600 hover:bg-green-500">{$_('sign-in')}</Button
+      >
+    {:else}
+      <div class="grid place-items-center">
+        <a href="/settings" use:link>
+          <Settings />
+        </a>
+      </div>
     {/if}
   </div>
 </div>
@@ -38,6 +46,7 @@
       callback={() => {
         replace('/')
       }}
-      enableSignInAnonymously={false} />
+      enableSignInAnonymously={false}
+    />
   </Dialog.Content>
 </Dialog.Root>

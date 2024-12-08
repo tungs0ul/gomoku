@@ -32,5 +32,11 @@
   "there-is-no-room-atm": "Hiện không có phòng nào",
   "back-to-main": "Quay lại trang chủ",
   "en": "English",
-  "vn": "Tiếng Việt"
+  "vn": "Tiếng Việt",
+  "sign-in": "Đăng nhập",
+  "login-with-google": "Đăng nhập bằng Google",
+  "login-with-github": "Đăng nhập bằng Github",
+  "join-as-guest": "Đăng nhập ẩn danh",
+  "sign-out": "Đăng xuất",
+  "or": "Hoặc"
 }

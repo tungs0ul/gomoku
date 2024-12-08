@@ -32,5 +32,11 @@
   "there-is-no-room-atm": "There is no rooms at the moment",
   "back-to-main": "Back to main",
   "en": "English",
-  "vn": "Tiếng Việt"
+  "vn": "Tiếng Việt",
+  "sign-in": "Sign In",
+  "login-with-google": "Login with Google",
+  "login-with-github": "Login with Github",
+  "join-as-guest": "Join as guest",
+  "sign-out": "Logout",
+  "or": "Or"
 }
