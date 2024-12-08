@@ -39,12 +39,12 @@
               {/if}
               {msg.user?.name ?? 'Anonymous'}
             </span>
+          {:else}
+            <span
+              class="mb-1 mt-4 flex items-center gap-2 self-end text-sm text-green-500">
+              {$_('you')}
+            </span>
           {/if}
-        {:else}
-          <span
-            class="mb-1 mt-4 flex items-center gap-2 self-end text-sm text-green-500">
-            {$_('you')}
-          </span>
         {/if}
         {#if msg.user !== null}
           <div
