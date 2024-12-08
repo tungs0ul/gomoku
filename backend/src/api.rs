@@ -63,17 +63,13 @@ pub fn app(pool: PgPool, jwt_secret: &str) -> Router {
         .route("/api/health", get(health_check))
         .route("/api/games", post(play))
         .route("/api/rooms", get(get_rooms))
-        .route("/api/users", post(random_user))
         //ws
         .route("/ws/rooms/:room_id", get(websocket_handler))
         .layer(CorsLayer::permissive())
         .with_state(Arc::new(state))
 }
 
-async fn random_user() -> String {
-    Uuid::new_v4().to_string()
-}
-
+#[tracing::instrument(skip(state))]
 async fn get_rooms(
     State(state): State<Arc<AppState>>,
     _claims: Claims,
@@ -91,6 +87,7 @@ async fn get_rooms(
     Ok(Json(rooms))
 }
 
+#[tracing::instrument(skip(_state))]
 async fn health_check(State(_state): State<Arc<AppState>>) -> StatusCode {
     tracing::info!("Health check passed.");
     StatusCode::OK
@@ -106,9 +103,10 @@ pub struct GameResponse {
     room: Uuid,
 }
 
+#[tracing::instrument(skip(state, _claims))]
 async fn play(
     State(state): State<Arc<AppState>>,
-    Claims { sub, .. }: Claims,
+    _claims @ Claims { sub, .. }: Claims,
     Json(GamePayload { game_type }): Json<GamePayload>,
 ) -> Result<Json<GameResponse>, StatusCode> {
     let user_id = sub;
@@ -170,6 +168,7 @@ async fn play(
     // Ok(format!("/ws/rooms/{room_id}"))
 }
 
+// #[tracing::instrument(skip(state, ws))]
 async fn websocket_handler(
     Path(room_id): Path<String>,
     ws: WebSocketUpgrade,
@@ -178,6 +177,7 @@ async fn websocket_handler(
     ws.on_upgrade(move |socket| websocket(socket, state, room_id))
 }
 
+// #[tracing::instrument(skip(state, stream))]
 async fn websocket(stream: WebSocket, state: Arc<AppState>, room_id: String) {
     let (mut sender, mut receiver) = stream.split();
     let mut user_id = None;

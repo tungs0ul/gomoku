@@ -1,6 +1,10 @@
-use backend::api;
-use serde::Deserialize;
-use sqlx::PgPool;
+use {
+    backend::api,
+    opentelemetry::global,
+    serde::Deserialize,
+    sqlx::PgPool,
+    tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt},
+};
 
 lazy_static::lazy_static! {
     static ref CONFIG: Config = envy::prefixed("BACKEND_").from_env::<Config>().unwrap();
@@ -14,14 +18,30 @@ pub struct Config {
 
 #[tokio::main]
 async fn main() {
-    let subscriber = tracing_subscriber::fmt()
-        .compact()
-        .with_file(true)
-        .with_line_number(true)
-        .with_thread_ids(true)
-        .with_target(false)
-        .finish();
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+    let tracer = opentelemetry_jaeger::new_pipeline()
+        .with_service_name("backend")
+        .with_agent_endpoint("jaeger:6831")
+        .install_simple()
+        .expect("");
+    tracing::info!(?tracer);
+    let opentelemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
+        )
+        .with(opentelemetry)
+        .with(
+            fmt::Layer::default()
+                .with_file(true)
+                .with_line_number(true)
+                .with_target(true)
+                .compact()
+                .with_level(true),
+        )
+        .try_init()
+        .expect("");
     tracing::info!("Listening on port 11211");
     let listener = tokio::net::TcpListener::bind("0.0.0.0:11211")
         .await

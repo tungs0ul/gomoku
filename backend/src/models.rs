@@ -78,9 +78,9 @@ impl Game {
         if self.winner.is_some() {
             return Err(anyhow::anyhow!("Game already won"));
         }
-        // if self.x.is_none() || self.o.is_none() {
-        //     return Err(anyhow::anyhow!("Game not started"));
-        // }
+        if self.x.is_none() || self.o.is_none() {
+            return Err(anyhow::anyhow!("Game not started"));
+        }
         if self.next_player != *player {
             return Err(anyhow::anyhow!("Invalid player"));
         }
@@ -471,7 +471,6 @@ impl Game {
         }
 
         threats.sort_by(|a, b| a.0.cmp(&b.0).reverse());
-        // println!("{threats:?}");
         threats
     }
 
@@ -710,9 +709,6 @@ impl Game {
             }
         }
 
-        // for col_start in range(N):
-        // diag = [board[N - 1 - i][col_start + i] for i in range(N - col_start)]
-        // diagonals.append(diag)
         for col_start in 0..BOARD_SIZE {
             let mut diagonal = vec![];
             let mut positions = vec![];
@@ -739,46 +735,6 @@ impl Game {
                 threats.extend(self.find_threats(&str, &mut player, &mut bot, positions));
             }
         }
-
-        // for row in 0..BOARD_SIZE {
-        //     for col in 0..BOARD_SIZE {
-        //         if self.board[row][col].is_none() {
-        //             continue;
-        //         }
-        //         if !self.is_near_existing_move(row, col) {
-        //             continue;
-        //         }
-
-        //         let p = self.board[row][col].unwrap();
-
-        //         let count = self.double_winning_threats(
-        //             row,
-        //             col,
-        //             match p {
-        //                 Player::O => &[
-        //                     "_oooo_", "_oooox", "xoooo_", "oo_oo", "o_ooo", "ooo_o", "_ooo_",
-        //                     "_oo_o_", "_o_oo_",
-        //                 ],
-        //                 Player::X => &[
-        //                     "_xxxx_", "_xxxxo", "oxxxx_", "xx_xx", "x_xxx", "xxx_x", "_xxx_",
-        //                     "_x_xx_", "_xx_x_",
-        //                 ],
-        //             },
-        //         ) as i32;
-        //         if count > 0 {
-        //             threats.push((count as usize, Position::new(col, row), p));
-        //             match p {
-        //                 Player::O => bot.push(count * 100),
-        //                 Player::X => player.push(count * 100),
-        //             }
-        //         }
-        //     }
-        // }
-
-        // # Diagonals starting from the left column, excluding the first one to avoid duplication
-        // for row_start in range(N - 2, -1, -1):
-        //     diag = [board[row_start - i][i] for i in range(row_start + 1)]
-        //     diagonals.append(diag)
 
         threats.sort_by(|a, b| match a.0.cmp(&b.0) {
             Ordering::Equal => {
@@ -879,8 +835,6 @@ impl Game {
         mut alpha: i32,
         mut beta: i32,
         transposition_table: &mut HashMap<String, i32>,
-        // sender: Option<&Sender<GameEvent>>,
-        // sender: &mut SplitSink<WebSocket, Message>,
     ) -> i32 {
         let board_key = self.board_to_string();
         if let Some(&cached_score) = transposition_table.get(&board_key) {
@@ -920,13 +874,6 @@ impl Game {
                 self.next_player = Player::X;
 
                 let score = self.minimax(depth - 1, false, alpha, beta, transposition_table);
-                // if let Some(sender) = sender {
-                //     let _ = sender.send(GameEvent::MiniMax {
-                //         position: pos,
-                //         score,
-                //     });
-                // }
-                // tokio::time::sleep(std::time::Duration::from_nanos(1)).await;
                 self.next_player = Player::O;
 
                 self.board[row][col] = None;
@@ -949,14 +896,6 @@ impl Game {
 
                 let score = self.minimax(depth - 1, true, alpha, beta, transposition_table);
 
-                // if let Some(sender) = sender {
-                //     let _ = sender.send(GameEvent::MiniMax {
-                //         position: pos,
-                //         score,
-                //     });
-                // }
-                // tokio::time::sleep(std::time::Duration::from_nanos(1)).await;
-
                 self.board[row][col] = None;
                 self.next_player = Player::X;
 
@@ -971,7 +910,6 @@ impl Game {
         }
     }
 }
-
 fn moves_to_string(vect: &[Option<Player>]) -> String {
     vect.iter()
         .map(|mv| match mv {
