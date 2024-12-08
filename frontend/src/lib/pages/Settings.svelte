@@ -24,8 +24,12 @@
     </Card.Header>
     <Card.Content>
       <div class="flex flex-col gap-4">
-        {auth.auth?.user.user_metadata.name ?? 'Anonymous'}
-        {auth.auth?.user.email ?? 'Email'}
+        <div>
+          {auth.auth?.user.user_metadata.name ?? 'Anonymous'}
+        </div>
+        <div>
+          {auth.auth?.user.email ?? 'Email'}
+        </div>
       </div>
     </Card.Content>
     <Card.Footer>
