@@ -22,12 +22,12 @@
       asyncComponent: () => import('$lib/pages/SignIn.svelte')
     }),
 
-    '/rooms/:room_id': wrap({
+    '/rooms': wrap({
       // @ts-ignore
       asyncComponent: () => import('$lib/pages/Rooms.svelte')
     }),
 
-    '/ws/*': wrap({
+    '/rooms/:room_id': wrap({
       // @ts-ignore
       asyncComponent: () => import('$lib/pages/Play.svelte')
     }),

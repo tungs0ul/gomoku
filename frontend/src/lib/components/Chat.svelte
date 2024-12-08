@@ -27,12 +27,21 @@
         in:fly={{ x: auth.auth?.user.id === msg.user?.id ? 50 : -50 }}
         class="flex flex-col"
       >
-        {#if i === 0 || msg.user !== messages[i - 1].user}
+        {#if i === 0 || msg.user?.id !== messages[i - 1].user?.id}
           <span
             class:self-start={msg.user?.id !== auth.auth?.user.id}
             class:self-end={msg.user?.id === auth.auth?.user.id}
-            class="mb-1 mt-4 text-sm text-gray-500"
+            class="mb-1 mt-4 flex items-center gap-2 text-sm text-gray-500"
           >
+            {#if msg.user?.avatar}
+              <div class="flex justify-end">
+                <img
+                  src={msg.user.avatar}
+                  alt="avatar"
+                  class="h-8 w-8 rounded-full"
+                />
+              </div>
+            {/if}
             {msg.user?.name ?? 'Anonymous'}
           </span>
         {/if}
