@@ -64,7 +64,7 @@ jobs:
 
       - name: Migrate database
         run: |
-          SKIP_DOCKER=true ./scripts/init_db.sh
+          SKIP_DOCKER=true ./scripts/init_test_db.sh
 
       - name: fmt
         run: cargo fmt --all --check
