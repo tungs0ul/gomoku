@@ -7,6 +7,12 @@
 name: supabase
 
 services:
+  jaeger:
+    image: jaegertracing/all-in-one:1.41.0
+    environment:
+      - METRICS_STORAGE_TYPE=prometheus
+      - PROMETHEUS_SERVER_URL=http://prometheus:9090
+
   nginx-proxy-manager:
     image: "jc21/nginx-proxy-manager:latest"
     restart: unless-stopped
@@ -411,8 +417,8 @@ services:
     # depends_on:
     #   vector:
     #     condition: service_healthy
-    ports:
-      - "5432:5432"
+    # ports:
+    #   - "5432:5432"
     command:
       - postgres
       - -c
@@ -472,6 +478,8 @@ services:
     environment:
       DATA_SOURCE_NAME: postgres://postgres:$POSTGRES_PASSWORD@$POSTGRES_HOST:$POSTGRES_PORT/postgres?sslmode=disable
     depends_on:
+      prometheus:
+        condition: service_started
       db:
         condition: service_healthy
     restart: unless-stopped
@@ -484,8 +492,6 @@ services:
       GF_USERS_ALLOW_SIGN_UP: false
     volumes:
       - grafana:/var/lib/grafana
-    ports:
-      - "${GRAFANA_PORT:-3000}:3000"
     restart: unless-stopped
   # vector:
   #   container_name: supabase-vector

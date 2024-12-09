@@ -13,6 +13,7 @@ impl Db {
         Self { pool }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn new_game(&self, game: &Game) -> Result<()> {
         sqlx::query!(
             "INSERT INTO game (id, room_id, x, o, init_player, game_type, status) VALUES ($1, $2, $3, $4, $5, $6, $7)",
@@ -29,6 +30,7 @@ impl Db {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn update_game(&self, game: &Game) -> Result<()> {
         sqlx::query!(
             r#"update game set winner = $2, x = $3, o = $4, status = $5, x_status = $6, o_status = $7 where id = $1"#,
@@ -45,6 +47,7 @@ impl Db {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn get_available_quick_games(&self, room_ids: &[Uuid]) -> Result<Game> {
         let game = sqlx::query_as!(
             GameDb,
@@ -84,6 +87,7 @@ impl Db {
         Ok(game)
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn get_active_game_for_rooms(
         &self,
         room_ids: &[Uuid],
@@ -137,6 +141,7 @@ impl Db {
         Ok(games)
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn get_active_game_for_room(&self, room_id: &Uuid) -> Result<Game> {
         let game = sqlx::query_as!(
             GameDb,
@@ -184,6 +189,7 @@ impl Db {
     //     Ok(())
     // }
 
+    #[tracing::instrument(skip(self))]
     pub async fn insert_move(&self, game_id: &Uuid, mv: &Move, turn: usize) -> Result<()> {
         sqlx::query!(
             r#"insert into game_move(game_id, row, col, player, turn) values ($1, $2, $3, $4, $5)"#,
