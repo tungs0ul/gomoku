@@ -31,12 +31,17 @@
   "play-again": "Chơi tiếp",
   "there-is-no-room-atm": "Hiện không có phòng nào",
   "back-to-main": "Quay lại trang chủ",
-  "en": "English",
-  "vn": "Tiếng Việt",
+  "en-US": "English",
+  "vi-VN": "Tiếng Việt",
   "sign-in": "Đăng nhập",
   "login-with-google": "Đăng nhập bằng Google",
   "login-with-github": "Đăng nhập bằng Github",
   "join-as-guest": "Đăng nhập ẩn danh",
   "sign-out": "Đăng xuất",
-  "or": "Hoặc"
+  "or": "Hoặc",
+  "tutorial-title": "Chào mừng đến với Gomoku!",
+  "tutorial-description": "Tìm hiểu những điều cơ bản trước khi bắt đầu trò chơi.",
+  "gomoku-objective": "Đặt 5 quân cờ liên tiếp (theo hàng ngang, hàng dọc hoặc chéo) trước đối thủ để chiến thắng!",
+  "dont-show-this-anymore": "Không hiển thị hướng dẫn này nữa.",
+  "play-now": "Chơi Ngay"
 }

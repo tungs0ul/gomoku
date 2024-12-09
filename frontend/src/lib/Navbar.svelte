@@ -41,20 +41,21 @@
     <DropdownMenu.Root>
       <DropdownMenu.Trigger>
         <div class="text-4xl">
-          {#if $locale?.includes('en')}
+          {#if $locale?.includes('en-US')}
             🇺🇸
-          {:else if $locale?.includes('vn')}
+          {:else if $locale?.includes('vi-VN')}
             🇻🇳
           {/if}
         </div>
       </DropdownMenu.Trigger>
       <DropdownMenu.Content>
         <DropdownMenu.Group>
-          {#each [{ icon: '🇺🇸', value: 'en' }, { icon: '🇻🇳', value: 'vn' }].filter((e) => !$locale?.startsWith(e.value)) as lang (lang.value)}
+          {#each [{ icon: '🇺🇸', value: 'en-US' }, { icon: '🇻🇳', value: 'vi-VN' }].filter((e) => !$locale?.startsWith(e.value)) as lang (lang.value)}
             <DropdownMenu.Item
               class="flex items-center text-2xl"
               on:click={() => {
                 locale.set(lang.value)
+                localStorage.setItem('language', lang.value)
               }}>{lang.icon} {$_(lang.value)}</DropdownMenu.Item>
           {/each}
         </DropdownMenu.Group>

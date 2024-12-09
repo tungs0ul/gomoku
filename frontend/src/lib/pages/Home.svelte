@@ -96,16 +96,14 @@
 
       <div class="flex flex-col gap-4">
         <Button
-          size="lg"
-          class="justify-start bg-blue-400 px-16 py-8 text-left text-4xl"
+          class="justify-start bg-blue-400 py-8 text-left text-xl"
           on:click={() => createGame('bot')}>
           <!-- <Bot class="mr-2 h-4 w-4" /> -->
           {$_('play-with-bot')}
         </Button>
 
         <Button
-          size="lg"
-          class="justify-start bg-green-400 px-16 py-8 text-4xl"
+          class="justify-start bg-green-400 py-8 text-xl"
           on:click={() => createGame('normal')}>
           <!-- <User class="mr-2 h-4 w-4" /> -->
           {$_('play-online')}
@@ -119,8 +117,7 @@
             }
             push('/rooms')
           }}
-          class="w-full justify-start px-16 py-8 text-4xl"
-          size="lg"
+          class="w-full justify-start py-8 text-xl"
           variant="secondary">
           {$_('watch')}
         </Button>

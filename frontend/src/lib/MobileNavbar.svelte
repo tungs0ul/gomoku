@@ -1,6 +1,5 @@
 <script lang="ts">
   import { _ } from 'svelte-i18n'
-  import Play from 'lucide-svelte/icons/play'
   import { link, replace } from 'svelte-spa-router'
   import { Button } from '$lib/components/ui/button'
   import { auth } from './store.svelte'
@@ -22,8 +21,7 @@
         on:click={() => {
           openSignInModal = true
         }}
-        class="w-full bg-green-600 hover:bg-green-500">{$_('sign-in')}</Button
-      >
+        class="w-full bg-green-600 hover:bg-green-500">{$_('sign-in')}</Button>
     {:else}
       <div class="grid place-items-center">
         <a href="/settings" use:link>
@@ -46,7 +44,6 @@
       callback={() => {
         replace('/')
       }}
-      enableSignInAnonymously={false}
-    />
+      enableSignInAnonymously={false} />
   </Dialog.Content>
 </Dialog.Root>

@@ -4,13 +4,16 @@
   import { isLoading } from 'svelte-i18n'
   import Navbar from '$lib/Navbar.svelte'
   import { _ } from 'svelte-i18n'
-  import Router, { replace } from 'svelte-spa-router'
+  import Router from 'svelte-spa-router'
   import { wrap } from 'svelte-spa-router/wrap'
   import Home from '$lib/pages/Home.svelte'
   import NotFound from '$lib/pages/NotFound.svelte'
   import MobileNavbar from '$lib/MobileNavbar.svelte'
   import { QueryClientProvider, QueryClient } from '@tanstack/svelte-query'
   import { SvelteQueryDevtools } from '@tanstack/svelte-query-devtools'
+  import Tutorial from '$lib/components/Tutorial.svelte'
+
+  let showTutorial = $state(!!!localStorage.getItem('tutorial'))
 
   const queryClient = new QueryClient()
 
@@ -52,6 +55,14 @@
     <QueryClientProvider client={queryClient}>
       <main class="relative grid grow place-items-center p-2">
         <Router {routes} />
+        {#if showTutorial}
+          <div class="fixed inset-0 grid place-items-center bg-black/50">
+            <Tutorial
+              onclick={() => {
+                showTutorial = false
+              }} />
+          </div>
+        {/if}
       </main>
       <SvelteQueryDevtools />
     </QueryClientProvider>

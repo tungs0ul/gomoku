@@ -3,12 +3,12 @@ import { getLocaleFromNavigator, init, register } from 'svelte-i18n'
 import './app.css'
 import App from './App.svelte'
 
-register('en', () => import('$lib/languages/en.json'))
-register('vn', () => import('$lib/languages/vn.json'))
+register('en-US', () => import('$lib/languages/en.json'))
+register('vi-VN', () => import('$lib/languages/vn.json'))
 
 init({
-  fallbackLocale: 'en',
-  initialLocale: getLocaleFromNavigator()
+  fallbackLocale: 'en-US',
+  initialLocale: localStorage.getItem('language') ?? getLocaleFromNavigator()
 })
 
 const app = mount(App, {
