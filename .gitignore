@@ -6,3 +6,5 @@
 
 .idea
 **/*.http
+volumes/db/data
+volumes/storage
