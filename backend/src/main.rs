@@ -19,11 +19,12 @@ pub struct Config {
 #[tokio::main]
 async fn main() {
     global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+    let jaeger_url = std::env::var("BACKEND_JAEGER_URL").unwrap_or("jaeger:6831".to_string());
     let tracer = opentelemetry_jaeger::new_pipeline()
         .with_service_name("backend")
-        .with_agent_endpoint("jaeger:6831")
+        .with_agent_endpoint(jaeger_url)
         .install_simple()
-        .expect("");
+        .expect("Error connecting jaeger");
     tracing::info!(?tracer);
     let opentelemetry = tracing_opentelemetry::layer().with_tracer(tracer);
 
