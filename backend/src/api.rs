@@ -505,7 +505,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>, room_id: String) {
                                 game.x = x_player;
                                 game.o = o_player;
                                 game.status = GameStatus::Playing;
-                                if let Err(error) = sender_state.db.update_game(&game).await {
+                                if let Err(error) = sender_state.db.new_game(&game).await {
                                     tracing::error!(?error, "Error creating new game");
                                 }
                                 if let Err(error) = sender_tx.send(GameEvent::Game {
